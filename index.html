@@ -935,10 +935,16 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button class="chip-clear" id="partsExportBtn">⬇ Export ข้อมูล</button>
+      <button class="chip-clear" id="partsImportBtn">⬆ Import ข้อมูล</button>
+      <input type="file" id="partsImportFileInput" accept="application/json" style="display:none;">
       <button class="chip-clear" id="partsUploadBtn">⬆ อัปโหลด PDF/รูปภาพ</button>
       <button class="chip-clear" id="partsClearAllBtn" style="border-color:var(--red);color:var(--red);">🗑 ล้างข้อมูลทั้งหมด</button>
       <input type="file" id="partsFileInput" accept="application/pdf,image/jpeg,image/png,image/jpg,image/webp" multiple style="display:none;">
     </div>
+  </div>
+  <div class="wrap" style="padding-top:8px;">
+    <p style="font-size:11px;color:var(--dim,#9CA3AF);margin:0 0 4px;">ย้ายเครื่อง/ย้ายโดเมน? กด "Export ข้อมูล" ที่เว็บเดิมเพื่อโหลดไฟล์สำรอง แล้วมากด "Import ข้อมูล" ที่เว็บใหม่ — ไม่ต้องอัปโหลด PDF ซ้ำ</p>
   </div>
 
   <div class="wrap" style="padding-top:22px;">
@@ -4237,6 +4243,57 @@ document.getElementById('partsClearAllBtn').onclick = ()=>{
   alert('ล้างข้อมูลเรียบร้อยแล้ว พร้อมอัปโหลด PDF ชุดใหม่ได้เลย');
 };
 partsFileInput.onchange = (e)=>{ handlePartsFiles(e.target.files); partsFileInput.value=''; };
+
+// ---------- Export / Import (move data between domains — localStorage doesn't follow you) ----------
+document.getElementById('partsExportBtn').onclick = ()=>{
+  const bundle = {
+    _type: 'tvn_parts_wo_backup',
+    _exportedAt: new Date().toISOString(),
+    parts: loadPartsData(),
+    priceRef: loadPriceRefUpload(),
+    mb52: loadMb52()
+  };
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `tech-vista-parts-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+const partsImportFileInput = document.getElementById('partsImportFileInput');
+document.getElementById('partsImportBtn').onclick = ()=> partsImportFileInput.click();
+partsImportFileInput.onchange = (e)=>{
+  const file = e.target.files[0];
+  partsImportFileInput.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let bundle;
+    try{ bundle = JSON.parse(reader.result); }
+    catch(err){ alert('ไฟล์นี้ไม่ใช่ไฟล์สำรองที่ถูกต้อง (เปิดอ่านไม่ได้)'); return; }
+    if(!bundle || bundle._type !== 'tvn_parts_wo_backup'){
+      alert('ไฟล์นี้ไม่ใช่ไฟล์ Export จากหน้า "ติดตามอะไหล่ WO" ครับ');
+      return;
+    }
+    const existingCount = Object.keys(loadPartsData()).length;
+    const incomingCount = Object.keys(bundle.parts || {}).length;
+    const msg = existingCount
+      ? `เว็บนี้มีข้อมูล WO อยู่แล้ว ${existingCount} รายการ\nไฟล์ที่นำเข้ามีข้อมูล ${incomingCount} รายการ\n\nนำเข้าแบบ "รวมกัน" (ของใหม่ทับ WO ที่ซ้ำเลขเดิม) ใช่ไหม?`
+      : `นำเข้าข้อมูล WO ${incomingCount} รายการ พร้อมตารางราคาอ้างอิงและสต็อก MB52 (ถ้ามีในไฟล์) ใช่ไหม?`;
+    if(!confirm(msg)) return;
+    const mergedParts = Object.assign({}, loadPartsData(), bundle.parts || {});
+    savePartsData(mergedParts);
+    if(bundle.priceRef) savePriceRefUpload(bundle.priceRef);
+    if(bundle.mb52) saveMb52(bundle.mb52);
+    renderPartsPage();
+    alert(`นำเข้าข้อมูลเรียบร้อยแล้ว (WO ทั้งหมดตอนนี้ ${Object.keys(mergedParts).length} รายการ)`);
+  };
+  reader.readAsText(file);
+};
 ['dragenter','dragover'].forEach(evt=> partsDropzone.addEventListener(evt, e=>{ e.preventDefault(); partsDropzone.classList.add('dragover'); }));
 ['dragleave','drop'].forEach(evt=> partsDropzone.addEventListener(evt, e=>{ e.preventDefault(); partsDropzone.classList.remove('dragover'); }));
 partsDropzone.addEventListener('drop', e=>{ if(e.dataTransfer.files.length) handlePartsFiles(e.dataTransfer.files); });
