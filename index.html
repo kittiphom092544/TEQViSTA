@@ -2330,23 +2330,28 @@ function renderMbxDelivery(body, rows, prevRows, months){
     { key:'CPG & Oversea', label:'CPG & Oversea', target:88800000, canvas:'mbxChartCPG', remainEl:'mbxRemainCPG' }
   ];
   const barOpts = { borderRadius:3, barPercentage:0.62, categoryPercentage:0.5 };
+  const cumulativeMonths = mbSelectedMonth === '__ALL__' ? months : months.slice(0, months.indexOf(mbSelectedMonth)+1);
   SM_SEGMENTS.forEach(g=>{
     const rs = rows.filter(d=>d.segment===g.key);
     const valuation = rs.reduce((s,d)=>s+(d.price||0),0);
     const approvedVal = rs.filter(isApproved).reduce((s,d)=>s+(d.price||0),0);
     const closedVal = rs.filter(d=>d.done).reduce((s,d)=>s+(d.price||0),0);
 
-    const remain = g.target - valuation;
+    // "remaining to target" — cumulative year-to-date (all months up to and including the one selected), not just this one month
+    const ytdRows = DATA.filter(d=> !isDuplicate(d) && cumulativeMonths.includes(d.month) && d.segment===g.key && (!mbxTypeFilter || d.type===mbxTypeFilter));
+    const ytdValuation = ytdRows.reduce((s,d)=>s+(d.price||0),0);
+    const remain = g.target - ytdValuation;
     const remainEl = document.getElementById(g.remainEl);
     if(remainEl){
       remainEl.innerHTML = remain > 0
-        ? `ห่างจากเป้าหมาย (${fmt(g.target)}) อีก <b style="color:var(--mbx-red);">฿${fmt(remain)}</b>`
-        : `เกินเป้าหมาย (${fmt(g.target)}) แล้ว <b style="color:var(--mbx-green);">฿${fmt(-remain)}</b>`;
+        ? `ห่างจากเป้าหมาย (${fmt(g.target)}) สะสม ${cumulativeMonths.length} เดือน อีก <b style="color:var(--mbx-red);">฿${fmt(remain)}</b>`
+        : `เกินเป้าหมาย (${fmt(g.target)}) สะสม ${cumulativeMonths.length} เดือน แล้ว <b style="color:var(--mbx-green);">฿${fmt(-remain)}</b>`;
     }
 
-    const datasets = [
-      { label:'Total Target', data:[g.target], backgroundColor:'#9CA3AF', ...barOpts }
-    ];
+    const datasets = [];
+    if(mbSelectedMonth === '__ALL__'){
+      datasets.push({ label:'Total Target', data:[g.target], backgroundColor:'#9CA3AF', ...barOpts });
+    }
     datasets.push({ label:'มูลค่างานทั้งหมด', data:[valuation], backgroundColor:'#14B8A6', ...barOpts });
     datasets.push({ label:'งานที่ Approve', data:[approvedVal], backgroundColor:'#F97316', ...barOpts });
     datasets.push({ label:'งานที่ส่งมอบแล้ว', data:[closedVal], backgroundColor:'#6D28D9', ...barOpts });
