@@ -557,6 +557,11 @@
   .tqs-slide .tqs-tt th{ background:#04407a!important; color:#fff!important; font-size:1.4cqw!important; }
   .tqs-slide .tqs-mt th{ background:transparent!important; color:#222!important; font-size:1.15cqw!important; }
   .tqs-slide .tqs-mt td{ color:#222!important; padding:.3cqw .5cqw!important; }
+  .tqs-kpi{ position:absolute!important; left:4cqw; right:4cqw; top:11cqw; bottom:4cqw; display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(3,1fr); gap:1.1cqw; }
+  .tqs-kc{ background:#fff; border:1px solid #d5dae1; border-left-width:.5cqw; border-radius:.5cqw; padding:1.1cqw 1.4cqw; display:flex; flex-direction:column; justify-content:center; box-shadow:0 0 .6cqw rgba(0,0,0,.06); }
+  .tqs-kc .l{ font-size:1.25cqw; color:#555; }
+  .tqs-kc .v{ font-size:3.3cqw; font-weight:700; line-height:1.25; }
+  .tqs-kc .s{ font-size:1cqw; color:#777; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
   .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
@@ -4477,7 +4482,7 @@ renderPartsPage();
 
 // ---------- Slide deck (replaces old monthboard) ----------
 let tqsIdx = 0;
-const TQS_TOTAL = 6;
+const TQS_TOTAL = 7;
 function tqsWrap(k){ const w=k.split(' '), out=[]; let l=''; w.forEach(x=>{ if((l+' '+x).trim().length>15){ out.push(l.trim()); l=x; } else l=(l+' '+x).trim(); }); out.push(l); return out; }
 function tqsRows(){
   return DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea')&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
@@ -4601,6 +4606,34 @@ function tqsTypeMonthSlide(){
     <tfoot><tr><td>Sum</td>${sums.map(v=>`<td>${n2(v)}</td>`).join('')}</tr></tfoot></table>
     <div class="tqs-logo" style="top:auto;bottom:2cqw;right:4cqw">TEQViSTA</div><div class="tqs-page" style="right:1cqw">14</div></div>`;
 }
+
+function tqsKpiSlide(asOf){
+  const rows=DATA.filter(d=>!isDuplicate(d)&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
+  const total=rows.length, cancelled=rows.filter(isCancelled).length, done=rows.filter(r=>r.done).length, pending=total-done-cancelled;
+  const P=n=>total?(n/total*100).toFixed(1):'0.0';
+  const sm=f=>rows.reduce((a,r)=>a+(r[f]||0),0), cn=f=>rows.filter(r=>r[f]!==null&&r[f]!==undefined).length;
+  const actual=rows.filter(r=>r.done).reduce((a,r)=>a+(r.price||0),0);
+  const noPrice=rows.filter(r=>r.price===null&&!isCancelled(r)).length;
+  const C={navy:'#0b3d7a',green:'#16a34a',red:'#e5484d',slate:'#6b7280',amber:'#d98a0b'};
+  const cards=[
+    ['งานทั้งหมด',total,'รายการ (ไม่รวมงานซ้ำ)','navy'],
+    ['เสร็จสมบูรณ์',P(done)+'%',done+' จาก '+total+' งาน','green'],
+    ['ยังค้างอยู่',pending,'ต้องติดตาม · '+P(pending)+'% ของทั้งหมด','red'],
+    ['ยกเลิก',cancelled,P(cancelled)+'% ของทั้งหมด','slate'],
+    ['ต้นทุนรวม (Matcode)',fmt(sm('matcode')),'คิดจาก '+cn('matcode')+' จาก '+total+' รายการ ('+P(cn('matcode'))+'%)','amber'],
+    ['รายได้รวม (Price)',fmt(sm('price')),'คิดจาก '+cn('price')+' จาก '+total+' รายการ ('+P(cn('price'))+'%)','navy'],
+    ['รายได้ที่เกิดขึ้นจริง',fmt(actual),'คิดจาก '+done+' จาก '+total+' รายการ ('+P(done)+'%)','green'],
+    ['ยังไม่มีราคา',noPrice,P(noPrice)+'% ของทั้งหมด (ไม่รวมยกเลิก)','red'],
+    ['Labor Cost',fmt(sm('laborCost')),'คิดจาก '+cn('laborCost')+' จาก '+total+' รายการ ('+P(cn('laborCost'))+'%)','amber'],
+    ['Cost Overhead',fmt(sm('costOverhead')),'คิดจาก '+cn('costOverhead')+' จาก '+total+' รายการ ('+P(cn('costOverhead'))+'%)','amber'],
+    ['Standard Cost',fmt(sm('standardCost')),'คิดจาก '+cn('standardCost')+' จาก '+total+' รายการ ('+P(cn('standardCost'))+'%)','amber']
+  ];
+  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
+    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+    <div class="tqs-date" style="position:absolute;right:4.5cqw;top:6.2cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
+    <div class="tqs-kpi">${cards.map(c=>`<div class="tqs-kc" style="border-left-color:${C[c[3]]}"><div class="l">${c[0]}</div><div class="v" style="color:${C[c[3]]}">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('')}</div>
+    <div class="tqs-page">6</div></div>`;
+}
 function tqsShow(i){
   if(!mbSelectedMonth) mbSelectedMonth='__ALL__';
   tqsRenderFilters();
@@ -4614,14 +4647,16 @@ function tqsShow(i){
   const sum=(rs,f)=>rs.filter(f||(()=>true)).reduce((s,d)=>s+(d.price||0),0);
   const mb=n=>(n/1e6).toFixed(1);
   const by=(rs,f)=>rs.filter(f);
-  if(tqsIdx===0){ stage.innerHTML=tqsOverview(rows,asOf); return; }
-  if(tqsIdx===5){ stage.innerHTML=tqsTypeMonthSlide(); return; }
-  if(tqsIdx<3){
-    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][tqsIdx-1];
-    stage.innerHTML=tqsTop10(G,7+tqsIdx,asOf); return;
+  if(tqsIdx===0){ stage.innerHTML=tqsKpiSlide(asOf); return; }
+  const ti=tqsIdx-1;
+  if(ti===0){ stage.innerHTML=tqsOverview(rows,asOf); return; }
+  if(ti===5){ stage.innerHTML=tqsTypeMonthSlide(); return; }
+  if(ti<3){
+    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][ti-1];
+    stage.innerHTML=tqsTop10(G,7+ti,asOf); return;
   }
   {
-    const isCPF=tqsIdx===3;
+    const isCPF=ti===3;
     const rs=rows.filter(d=>d.segment===(isCPF?'CPF Thailand':'CPG & Oversea'));
     const keys=['Smart Manufacturing Machine'];
     const tg=isCPF?[165.3e6]:[88.8e6];
@@ -4631,7 +4666,7 @@ function tqsShow(i){
   }
 }
 const _tqsShowRaw=tqsShow;
-tqsShow=function(i){ _tqsShowRaw(i); if(!tqsRows().length){ const sl=document.querySelector('#tqsStage .tqs-slide'); if(sl) sl.insertAdjacentHTML('beforeend',tqsDiag()); } };
+tqsShow=function(i){ _tqsShowRaw(i); if(tqsIdx>=1&&tqsIdx<=5&&!tqsRows().length){ const sl=document.querySelector('#tqsStage .tqs-slide'); if(sl) sl.insertAdjacentHTML('beforeend',tqsDiag()); } };
 function renderMonthboard(){ tqsShow(tqsIdx); }
 document.getElementById('tqsPrev').onclick=()=>tqsShow(tqsIdx-1);
 document.getElementById('tqsNext').onclick=()=>tqsShow(tqsIdx+1);
