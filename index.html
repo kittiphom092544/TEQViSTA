@@ -528,7 +528,7 @@
   .tqs-chip:hover{ border-color:#5b9bde; }
   .tqs-chip.active{ background:#1d5fa8; border-color:#1d5fa8; color:#fff; }
   .tqs-diag{ position:absolute!important; left:5cqw; right:8cqw; bottom:4cqw; background:#fff3cd; border:1px solid #e0b64a; color:#5a4300; border-radius:6px; padding:1cqw 1.4cqw; font-size:1.25cqw; line-height:1.5; z-index:5; }
-  .tqs-ov{ position:absolute!important; left:3cqw; right:3cqw; top:9.5cqw; bottom:2.2cqw; display:grid; grid-template-columns:36% 19% 1fr; grid-template-rows:17cqw 13.5cqw 1fr; gap:.8cqw; font-size:1.15cqw; }
+  .tqs-ov{ position:absolute!important; left:3cqw; right:3cqw; top:9.5cqw; bottom:2.2cqw; display:grid; grid-template-columns:38% 22% 1fr; grid-template-rows:17cqw 13.5cqw 1fr; gap:.8cqw; font-size:1.15cqw; }
   .tqs-box{ background:#fff; border:1px solid #d5dae1; border-radius:.4cqw; padding:.6cqw .8cqw; overflow:hidden; box-shadow:0 0 .6cqw rgba(0,0,0,.06); }
   .tqs-box h4{ font-size:1.1cqw; font-weight:600; color:#333; margin-bottom:.4cqw; }
   .tqs-tm{ display:flex; gap:.2cqw; height:calc(100% - 2cqw); }
@@ -552,6 +552,11 @@
   .tqs-tt tbody tr:nth-child(even) td{ background:#fff; }
   .tqs-tt td:first-child{ text-align:center; font-weight:500; }
   .tqs-tt tfoot td{ background:#dbe6f7; font-weight:700; }
+  .tqs-slide th, .tqs-slide td{ font-family:'Prompt','IBM Plex Sans Thai',sans-serif!important; text-transform:none!important; letter-spacing:0!important; }
+  .tqs-slide .tqs-table th{ background:#0b3d7a!important; color:#fff!important; font-size:1.3cqw!important; }
+  .tqs-slide .tqs-tt th{ background:#04407a!important; color:#fff!important; font-size:1.4cqw!important; }
+  .tqs-slide .tqs-mt th{ background:transparent!important; color:#222!important; font-size:1.15cqw!important; }
+  .tqs-slide .tqs-mt td{ color:#222!important; padding:.3cqw .5cqw!important; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
   .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
@@ -2244,11 +2249,7 @@ function renderMonthboardOld(){
 }
 
 // ---------- TEQViSTA Workorder Update slides (Top 10 per channel) ----------
-function mbxWOStatus(d){
-  if(d.done) return 'Closed';
-  if(/wait|pending/i.test(d.jobApprove||'') || /wait|pending/i.test(d.custApprove||'')) return 'Quotation';
-  return ioPoType(d).tag === 'PO' ? 'PO' : 'WO';
-}
+function mbxWOStatus(d){ return tqsStatus(d); }
 function renderMbxWO(el){
   const all = DATA.filter(d=> !isDuplicate(d) && !isCancelled(d));
   const t = lastSyncTime || new Date();
@@ -4536,13 +4537,11 @@ function tqsDiag(){
 
 function tqsStatus(d){
   if(d.done) return 'Closed';
-  const di=(d.doInvoice||'').trim();
-  if(di) return /inv/i.test(di)?'Invoice':'DO';
-  if(/wait|pending/i.test(d.jobApprove||'')||/wait|pending/i.test(d.custApprove||'')) return 'Quotation';
-  return ioPoType(d).tag==='PO'?'PO':'WO';
+  if(/wait|pending/i.test(d.jobApprove||'')) return 'Quotation';
+  return 'WO';
 }
 function tqsOverview(rows, asOf){
-  const ST=['Quotation','PO','WO','DO','Invoice','Closed'];
+  const ST=['Quotation','WO','Closed'];
   const COL={WO:'#1e8fff',Quotation:'#ffc800',Closed:'#1b1f9c',PO:'#e8368f',DO:'#7b2cbf',Invoice:'#ff8c1a'};
   const val={},ord={},itm={};
   ST.forEach(k=>{val[k]=0;ord[k]=new Set();itm[k]=0;});
@@ -4561,7 +4560,7 @@ function tqsOverview(rows, asOf){
       +(rest.length?`<div class="col" style="flex:${Math.max(restSum,val[first]*0.25)}">${rest.map((k,i)=>cell(k,i<2)).join('')}</div>`:'');
   }
   // details: top 4 by valuation
-  const top=[...rows].sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,4);
+  const top=[...rows].sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,3);
   const det=top.map(d=>`<tr><td style="text-align:left;font-weight:400">${escHtml(d.wo||'-')}</td><td style="text-align:left">${escHtml(d.project||'-')}</td><td>${fmt(d.price||0)}</td><td style="text-align:center">${tqsStatus(d)}</td></tr>`).join('');
   const cells=(f)=>ST.map(k=>`<td>${f(k)}</td>`).join('');
   const segs=[...new Set(rows.map(d=>d.segment))];
@@ -4569,21 +4568,19 @@ function tqsOverview(rows, asOf){
     <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
     <div class="tqs-date" style="position:absolute;right:4.5cqw;top:6.2cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
     <div class="tqs-ov">
-      <div class="tqs-box"><h4>Total Revenue (MB)</h4><div class="tqs-tm">${tm||'<div style="color:#666">ไม่มีข้อมูล</div>'}</div></div>
-      <div class="tqs-box"><h4>Efficiency Order</h4><div style="font-size:.95cqw;color:#666">ออเดอร์ที่ไม่ใช่ Quotation / ออเดอร์ทั้งหมด</div>
+      <div class="tqs-box" style="grid-column:1;grid-row:1"><h4>Total Revenue (MB)</h4><div class="tqs-tm">${tm||'<div style="color:#666">ไม่มีข้อมูล</div>'}</div></div>
+      <div class="tqs-box" style="grid-column:2;grid-row:1"><h4>Efficiency Order</h4><div style="font-size:.95cqw;color:#666">ออเดอร์ที่ไม่ใช่ Quotation / ออเดอร์ทั้งหมด</div>
         <div style="font-size:4.6cqw;font-weight:700;color:#0a9a96;text-align:center;margin-top:1.6cqw">${eff.toFixed(1)}%</div></div>
-      <div style="display:flex;flex-direction:column;gap:.8cqw;grid-row:1 / 3">
-        <div class="tqs-box" style="flex:1"><h4>Type of Customer</h4>${['CPF Thailand','CPG & Oversea'].map(k=>`<div>${segs.includes(k)?'☑':'☐'} ${k==='CPG & Oversea'?'CPF Oversea &amp; CPG':k}</div>`).join('')}</div>
-        <div class="tqs-box" style="flex:1"><div>${(lastSyncTime||new Date()).toLocaleString('th-TH')}</div><div style="color:#666;font-size:.95cqw">Last Refresh</div></div>
-      </div>
-      <div class="tqs-box" style="grid-column:1 / 3"><table class="tqs-mt">
+      <div class="tqs-box" style="grid-column:3;grid-row:1"><h4>Last Refresh</h4><div style="font-size:1.3cqw">${(lastSyncTime||new Date()).toLocaleString('th-TH')}</div></div>
+      <div class="tqs-box" style="grid-column:1 / 3;grid-row:2"><table class="tqs-mt">
         <thead><tr><th>Metric Name</th>${ST.map(k=>`<th>${k}</th>`).join('')}<th>Total</th></tr></thead>
         <tbody>
           <tr><td>จำนวน Order</td>${cells(k=>fmt(ord[k].size))}<td>${fmt(totO)}</td></tr>
           <tr><td>จำนวนรายการสินค้า</td>${cells(k=>fmt(itm[k]))}<td>${fmt(totI)}</td></tr>
           <tr><td>มูลค่า (Baht)</td>${cells(k=>fmt(val[k]))}<td>${fmt(totV)}</td></tr>
         </tbody></table></div>
-      <div class="tqs-box" style="grid-column:1 / 4;grid-row:3"><h4>Details (Top 4)</h4><table class="tqs-mt" style="font-size:1cqw"><thead><tr><th style="text-align:left">Quotation No.</th><th style="text-align:left">Product / Service</th><th>Valuation</th><th>Status</th></tr></thead><tbody>${det}</tbody></table></div>
+      <div class="tqs-box" style="grid-column:3;grid-row:2"><h4>Type of Customer</h4>${['CPF Thailand','CPG & Oversea'].map(k=>`<div style="font-size:1.2cqw">${segs.includes(k)?'☑':'☐'} ${k==='CPG & Oversea'?'CPF Oversea &amp; CPG':k}</div>`).join('')}</div>
+      <div class="tqs-box" style="grid-column:1 / 4;grid-row:3"><h4>Details</h4><table class="tqs-mt" style="font-size:1cqw"><thead><tr><th style="text-align:left">Quotation No.</th><th style="text-align:left">Product / Service Name</th><th>Valuation</th><th>Status</th></tr></thead><tbody>${det}</tbody></table></div>
     </div>
     <div class="tqs-page">7</div></div>`;
 }
