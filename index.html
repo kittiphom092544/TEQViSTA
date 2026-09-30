@@ -521,8 +521,14 @@
   .tqs-bar-title{ font-weight:700; font-size:15px; }
   .tqs-bar-actions{ display:flex; gap:8px; align-items:center; }
   .tqs-count{ color:#fff; font-size:13px; min-width:52px; text-align:center; }
+  .tqs-filters{ background:#16202e; padding:8px 22px; display:flex; flex-wrap:wrap; gap:6px 22px; align-items:center; }
+  .tqs-fgroup{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .tqs-flabel{ color:#8fa3b8; font-size:11px; font-weight:600; text-transform:uppercase; margin-right:2px; }
+  .tqs-chip{ padding:3px 11px; border-radius:14px; font-size:12px; color:#cfd9e4; border:1px solid #2c3b4e; cursor:pointer; }
+  .tqs-chip:hover{ border-color:#5b9bde; }
+  .tqs-chip.active{ background:#1d5fa8; border-color:#1d5fa8; color:#fff; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
-  .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 100px)*16/9)); margin:0; }
+  .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
   .tqs-chartbox{ position:absolute!important; left:26%; right:3%; top:19%; bottom:7%; background:#fff; }
   /* ---------- TEQViSTA Workorder Update slides ---------- */
@@ -1367,6 +1373,7 @@
         <button class="mbx-btn-outline" id="mbxExitBtn">✕ ออก</button>
       </div>
     </div>
+    <div class="tqs-filters" id="tqsFilters"></div>
     <div class="tqs-stage" id="tqsStage"></div>
   </div>
 </div>
@@ -4446,8 +4453,11 @@ renderPartsPage();
 let tqsIdx = 0;
 const TQS_TOTAL = 5;
 function tqsWrap(k){ const w=k.split(' '), out=[]; let l=''; w.forEach(x=>{ if((l+' '+x).trim().length>15){ out.push(l.trim()); l=x; } else l=(l+' '+x).trim(); }); out.push(l); return out; }
+function tqsRows(){
+  return DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea')&&/smart\s*manufacturing/i.test(d.biz||'')&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
+}
 function tqsTop10(g, page, asOf){
-  const all = DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d));
+  const all = tqsRows();
   const top = all.filter(d=>d.segment===g.key).sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,10);
   const total = top.reduce((s,d)=>s+(d.price||0),0);
   const body = top.length ? top.map(d=>`<tr><td class="ctr">${escHtml(d.wo||'-')}</td>${g.bu?`<td class="ctr">${escHtml(d.biz||'-')}</td>`:''}<td>${escHtml(d.customer||'-')}</td><td>${escHtml(d.project||'-')}</td><td class="num">${fmt(d.price||0)}</td><td class="ctr">${mbxWOStatus(d)}</td></tr>`).join('') : `<tr><td colspan="6" class="ctr">ไม่มีข้อมูล</td></tr>`;
@@ -4478,32 +4488,53 @@ function tqsDrawChart(labels, target, val, appr, closed){
       scales:{x:{grid:{display:false},ticks:{font:{size:12}}},y:{ticks:{callback:v=>v>=1e6?(v/1e6)+'M':v},grid:{color:'rgba(0,0,0,.06)'}}}}
   });
 }
+function tqsRenderFilters(){
+  const months=getMonthOrder();
+  if(mbSelectedMonth!=='__ALL__'&&!months.includes(mbSelectedMonth)) mbSelectedMonth='__ALL__';
+  const inMonth=DATA.filter(d=>!isDuplicate(d)&&(mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth));
+  const types=[...new Set(inMonth.map(d=>d.type).filter(Boolean))].sort();
+  if(mbxTypeFilter&&!types.includes(mbxTypeFilter)) mbxTypeFilter='';
+  const chip=(a,label,on)=>`<div class="tqs-chip ${on?'active':''}" ${a}>${escHtml(label)}</div>`;
+  const el=document.getElementById('tqsFilters');
+  el.innerHTML=`<div class="tqs-fgroup"><span class="tqs-flabel">Month</span>`
+    +chip('data-month="__ALL__"','ทั้งปี',mbSelectedMonth==='__ALL__')
+    +months.map(m=>chip(`data-month="${m}"`,(DATA.find(d=>d.month===m)||{}).monthLabel||m,m===mbSelectedMonth)).join('')
+    +`</div><div class="tqs-fgroup"><span class="tqs-flabel">Type</span>`
+    +chip('data-type=""','ทั้งหมด',mbxTypeFilter==='')
+    +types.map(t=>chip(`data-type="${escHtml(t)}"`,t,mbxTypeFilter===t)).join('')+`</div>`;
+  el.querySelectorAll('[data-month]').forEach(c=>c.onclick=()=>{ mbSelectedMonth=c.dataset.month; tqsShow(tqsIdx); });
+  el.querySelectorAll('[data-type]').forEach(c=>c.onclick=()=>{ mbxTypeFilter=c.dataset.type; tqsShow(tqsIdx); });
+}
 function tqsShow(i){
+  if(!mbSelectedMonth) mbSelectedMonth='__ALL__';
+  tqsRenderFilters();
   tqsIdx = (i+TQS_TOTAL)%TQS_TOTAL;
   const stage=document.getElementById('tqsStage');
   const t=lastSyncTime||new Date();
   const asOf=String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0')+'/'+t.getFullYear();
   document.getElementById('tqsCount').textContent=(tqsIdx+1)+' / '+TQS_TOTAL;
-  const rows=DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d));
+  const rows=tqsRows();
   const isAppr=d=>{const v=(d.custApprove||'').trim();return v&&!/wait|pending/i.test(v);};
   const sum=(rs,f)=>rs.filter(f||(()=>true)).reduce((s,d)=>s+(d.price||0),0);
   const mb=n=>(n/1e6).toFixed(1);
-  if(tqsIdx<3){
-    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false},{key:'External Customer',title:'TOP 10 – <b>External Customer</b>',bu:false}][tqsIdx];
+  const by=(rs,f)=>rs.filter(f);
+  if(tqsIdx<2){
+    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][tqsIdx];
     stage.innerHTML=tqsTop10(G,8+tqsIdx,asOf); return;
   }
-  if(tqsIdx===3){
-    const seg=[['CPF Thailand','CPF Thailand',587e6],['CPG & Oversea','CPF Oversea & CPG',158.9e6],['External Customer','External Customer',76e6]];
+  if(tqsIdx===2){
+    const seg=[['CPF Thailand','CPF Thailand',587e6],['CPG & Oversea','CPF Oversea & CPG',158.9e6]];
     stage.innerHTML=tqsChartSlide('TOTAL REVENUE BY CHANNEL',mb(sum(rows)),11,asOf);
-    const by=k=>rows.filter(d=>d.segment===k);
-    tqsDrawChart(seg.map(x=>x[1]),seg.map(x=>x[2]),seg.map(x=>sum(by(x[0]))),seg.map(x=>sum(by(x[0]),isAppr)),seg.map(x=>sum(by(x[0]),d=>d.done)));
+    const g=k=>rows.filter(d=>d.segment===k);
+    tqsDrawChart(seg.map(x=>x[1]),seg.map(x=>x[2]),seg.map(x=>sum(g(x[0]))),seg.map(x=>sum(g(x[0]),isAppr)),seg.map(x=>sum(g(x[0]),d=>d.done)));
   } else {
-    const cpf=rows.filter(d=>d.segment==='CPF Thailand');
-    const keys=['Design & Construction management','Smart Manufacturing Machine','Panel Builder','AI IoT & Robotic / Industrial Automation','Maintenance & Calibration','Consultancy'];
-    const tg=[165.9e6,165.3e6,148.9e6,72.8e6,21e6,1.7e6];
-    const by=k=>cpf.filter(d=>(d.biz||'').trim()===k);
-    stage.innerHTML=tqsChartSlide('REVENUE – <b>CPF Thailand</b>',mb(sum(cpf)),12,asOf);
-    tqsDrawChart(keys.map(tqsWrap),tg,keys.map(k=>sum(by(k))),keys.map(k=>sum(by(k),isAppr)),keys.map(k=>sum(by(k),d=>d.done)));
+    const isCPF=tqsIdx===3;
+    const rs=rows.filter(d=>d.segment===(isCPF?'CPF Thailand':'CPG & Oversea'));
+    const keys=['Smart Manufacturing Machine'];
+    const tg=isCPF?[165.3e6]:[88.8e6];
+    const g=k=>rs;
+    stage.innerHTML=tqsChartSlide(isCPF?'REVENUE – <b>CPF Thailand</b>':'REVENUE – <b>CPG &amp; Overseas</b>',mb(sum(rs)),isCPF?12:13,asOf);
+    tqsDrawChart(keys.map(tqsWrap),tg,keys.map(k=>sum(g(k))),keys.map(k=>sum(g(k),isAppr)),keys.map(k=>sum(g(k),d=>d.done)));
   }
 }
 function renderMonthboard(){ tqsShow(tqsIdx); }
