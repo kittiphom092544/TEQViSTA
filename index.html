@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tech Vista Nongkhae — ศูนย์ควบคุมงาน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="this.onerror=null;document.write('<script src=\'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js\'>\x3c/script>')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" onerror="this.onerror=null;document.write('<script src=\'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js\'>\x3c/script>')"></script>
@@ -513,6 +514,37 @@
   .mbx-btn-outline:hover{ border-color:var(--mbx-purple); color:var(--mbx-purple); }
   .mbx-layout{ display:flex; align-items:flex-start; }
   .mbx-sidebar{ width:230px; flex-shrink:0; padding:20px 14px; position:sticky; top:0; max-height:100vh; overflow-y:auto; }
+
+
+  .tqs-root{ margin:-22px -24px; background:#0f1722; min-height:100vh; display:flex; flex-direction:column; }
+  .tqs-bar{ display:flex; justify-content:space-between; align-items:center; padding:10px 22px; background:#0b3d7a; color:#fff; }
+  .tqs-bar-title{ font-weight:700; font-size:15px; }
+  .tqs-bar-actions{ display:flex; gap:8px; align-items:center; }
+  .tqs-count{ color:#fff; font-size:13px; min-width:52px; text-align:center; }
+  .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
+  .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 100px)*16/9)); margin:0; }
+  .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
+  .tqs-chartbox{ position:absolute!important; left:26%; right:3%; top:19%; bottom:7%; background:#fff; }
+  /* ---------- TEQViSTA Workorder Update slides ---------- */
+  .tqs-slide{ container-type:inline-size; position:relative; aspect-ratio:16/9; background:#fff; border-radius:10px; overflow:hidden; margin:0 0 22px; padding:3.2cqw 4.5cqw 0; box-shadow:0 2px 14px rgba(11,61,122,.18); font-family:'Prompt','IBM Plex Sans Thai',sans-serif; color:#222; }
+  .tqs-slide::before{ content:''; position:absolute; left:0; top:0; width:32%; height:52%; background:linear-gradient(135deg,#5b9bde 0%,#0b3d7a 55%,#0b3d7a 100%); clip-path:polygon(0 0,100% 0,0 100%); opacity:.9; z-index:0; }
+  .tqs-slide::after{ content:''; position:absolute; right:0; bottom:0; width:14%; height:26%; background:linear-gradient(315deg,#0b3d7a,#5b9bde); clip-path:polygon(100% 0,100% 100%,0 100%); opacity:.9; z-index:0; }
+  .tqs-slide > *{ position:relative; z-index:1; }
+  .tqs-logo{ position:absolute!important; right:3cqw; top:2cqw; font-weight:700; font-size:1.5cqw; letter-spacing:.35cqw; color:#0b3d7a; }
+  .tqs-title{ text-align:center; font-size:3.4cqw; font-weight:700; color:#222; }
+  .tqs-title b{ color:#0b3d7a; }
+  .tqs-sub{ text-align:center; font-size:2.3cqw; font-weight:700; margin-top:1.4cqw; }
+  .tqs-sub b{ color:#0b3d7a; }
+  .tqs-date{ text-align:right; font-size:1.55cqw; margin:-.6cqw 0 .6cqw; }
+  .tqs-table{ width:100%; border-collapse:collapse; font-size:1.3cqw; background:#fff; }
+  .tqs-table th{ background:#0b3d7a; color:#fff; padding:.75cqw .7cqw; font-weight:600; border:1px solid #fff; }
+  .tqs-table td{ padding:.55cqw .7cqw; border:1px solid #333; }
+  .tqs-table tbody tr:nth-child(even) td{ background:#d9d9d9; }
+  .tqs-table td.num{ text-align:right; white-space:nowrap; }
+  .tqs-table td.ctr{ text-align:center; }
+  .tqs-table tfoot td{ background:#0b3d7a!important; color:#fff; font-weight:700; text-align:center; border-color:#0b3d7a; }
+  .tqs-table tfoot td.num{ text-align:right; }
+  .tqs-page{ position:absolute!important; right:2.4cqw; bottom:1.2cqw; font-weight:700; font-size:1.4cqw; color:#222; }
   .mbx-nav{ display:flex; flex-direction:column; gap:4px; margin-bottom:22px; }
   .mbx-nav-item{ padding:11px 14px; border-radius:8px; font-size:13.5px; color:var(--mbx-text); cursor:pointer; font-weight:500; }
   .mbx-section-heading{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--mbx-text); margin:10px 0 6px; padding-top:8px; border-top:1px solid var(--mbx-border); text-transform:uppercase; letter-spacing:.03em; }
@@ -1324,33 +1356,18 @@
 </div>
 
 <div class="view-page" id="view-monthboard" style="display:none;">
-  <div class="mbx-root" id="mbxRoot">
-    <div class="mbx-topstrip">
-      <div class="mbx-topstrip-title" id="mbxPageTitle">Executive Summary</div>
-      <div class="mbx-topstrip-actions">
-        <button class="mbx-btn-outline" id="mbFullscreenBtn">⛶ โหมดเต็มจอ</button>
-        <button class="mbx-btn-outline" id="mbxExitBtn">✕ ออกจากโหมดนำเสนอ</button>
+  <div class="tqs-root" id="mbxRoot">
+    <div class="tqs-bar">
+      <div class="tqs-bar-title">TEQViSTA Workorder Update</div>
+      <div class="tqs-bar-actions">
+        <button class="mbx-btn-outline" id="tqsPrev">◀ ก่อนหน้า</button>
+        <span id="tqsCount" class="tqs-count"></span>
+        <button class="mbx-btn-outline" id="tqsNext">ถัดไป ▶</button>
+        <button class="mbx-btn-outline" id="mbFullscreenBtn">⛶ เต็มจอ</button>
+        <button class="mbx-btn-outline" id="mbxExitBtn">✕ ออก</button>
       </div>
     </div>
-    <div class="mbx-layout">
-      <div class="mbx-sidebar">
-        <div class="mbx-nav" id="mbxNav">
-          <div class="mbx-nav-item active" data-section="exec">Executive Summary</div>
-          <div class="mbx-nav-item" data-section="delivery">Delivery Performance</div>
-          <div class="mbx-nav-item" data-section="customer">Customer Scorecard</div>
-          <div class="mbx-nav-item" data-section="cost">Cost &amp; Quality</div>
-        </div>
-        <div class="mbx-filter-group">
-          <div class="mbx-filter-label">Month</div>
-          <div class="mbx-filter-chips" id="mbMonthPicker"></div>
-        </div>
-        <div class="mbx-filter-group">
-          <div class="mbx-filter-label">Type</div>
-          <div class="mbx-filter-chips" id="mbxTypeFilter"></div>
-        </div>
-      </div>
-      <div class="mbx-content" id="mbBody"></div>
-    </div>
+    <div class="tqs-stage" id="tqsStage"></div>
   </div>
 </div>
 
@@ -2121,7 +2138,7 @@ function mbxCurrentMonthLabel(){
   if(mbSelectedMonth === '__ALL__') return 'ทั้งปี';
   return (DATA.find(d=>d.month===mbSelectedMonth)||{}).monthLabel || mbSelectedMonth || '';
 }
-function renderMonthboard(){
+function renderMonthboardOld(){
   const months = getMonthOrder();
   if(!months.length){
     document.getElementById('mbMonthPicker').innerHTML = '';
@@ -2180,15 +2197,62 @@ function renderMonthboard(){
       <div class="mbx-section-heading"><span class="dot"></span>Cost &amp; Quality</div>
       <div id="mbxSubCost"></div>
     </section>
+    <section id="mbxSecWO">
+      <div class="mbx-section-heading"><span class="dot"></span>Workorder Update (Slides)</div>
+      <div id="mbxSubWO"></div>
+    </section>
   `;
   renderMbxExec(document.getElementById('mbxSubExec'), rows, prevRows, months);
   renderMbxDelivery(document.getElementById('mbxSubDelivery'), rows, prevRows, months);
   renderMbxCustomer(document.getElementById('mbxSubCustomer'), rows, prevRows);
   renderMbxCost(document.getElementById('mbxSubCost'), rows, prevRows);
+  renderMbxWO(document.getElementById('mbxSubWO'));
 
   mbxSetupScrollSpy();
 }
-const mbxSectionAnchor = { exec:'mbxSecExec', delivery:'mbxSecDelivery', customer:'mbxSecCustomer', cost:'mbxSecCost' };
+
+// ---------- TEQViSTA Workorder Update slides (Top 10 per channel) ----------
+function mbxWOStatus(d){
+  if(d.done) return 'Closed';
+  if(/wait|pending/i.test(d.jobApprove||'') || /wait|pending/i.test(d.custApprove||'')) return 'Quotation';
+  return ioPoType(d).tag === 'PO' ? 'PO' : 'WO';
+}
+function renderMbxWO(el){
+  const all = DATA.filter(d=> !isDuplicate(d) && !isCancelled(d));
+  const t = lastSyncTime || new Date();
+  const asOf = String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0')+'/'+t.getFullYear();
+  const groups = [
+    { key:'CPF Thailand',  title:'TOP 10 – <b>CPF Thailand</b>',            bu:true  },
+    { key:'CPG & Oversea', title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',  bu:false },
+    { key:'External Customer', title:'TOP 10 – <b>External Customer</b>',    bu:false }
+  ];
+  el.innerHTML = groups.map((g,i)=>{
+    const top = all.filter(d=>d.segment===g.key).sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,10);
+    const total = top.reduce((s,d)=>s+(d.price||0),0);
+    const cols = g.bu ? 6 : 5;
+    const body = top.length ? top.map(d=>`<tr>
+        <td class="ctr">${escHtml(d.wo||'-')}</td>
+        ${g.bu?`<td class="ctr">${escHtml(d.biz||'-')}</td>`:''}
+        <td>${escHtml(d.customer||'-')}</td>
+        <td>${escHtml(d.project||'-')}</td>
+        <td class="num">${fmt(d.price||0)}</td>
+        <td class="ctr">${mbxWOStatus(d)}</td></tr>`).join('')
+      : `<tr><td colspan="${cols}" class="ctr">ไม่มีข้อมูล</td></tr>`;
+    return `<div class="tqs-slide">
+      <div class="tqs-logo">TEQViSTA</div>
+      <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+      <div class="tqs-sub">${g.title}</div>
+      <div class="tqs-date">ข้อมูลสรุปวันที่ ${asOf}</div>
+      <table class="tqs-table">
+        <thead><tr><th>Quotation No.</th>${g.bu?'<th>Business Unit</th>':''}<th>Customer</th><th>Product / Service Name</th><th>Valuation</th><th>Status</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td colspan="${g.bu?4:3}">Total</td><td class="num">${fmt(total)}</td><td></td></tr></tfoot>
+      </table>
+      <div class="tqs-page">${8+i}</div>
+    </div>`;
+  }).join('');
+}
+const mbxSectionAnchor = { exec:'mbxSecExec', delivery:'mbxSecDelivery', customer:'mbxSecCustomer', cost:'mbxSecCost', wo:'mbxSecWO' };
 let mbxScrollSpyObserver = null;
 function mbxSetupScrollSpy(){
   if(mbxScrollSpyObserver) mbxScrollSpyObserver.disconnect();
@@ -4377,6 +4441,79 @@ document.querySelectorAll('.parts-tab').forEach(btn=>{
 });
 
 renderPartsPage();
+
+// ---------- Slide deck (replaces old monthboard) ----------
+let tqsIdx = 0;
+const TQS_TOTAL = 5;
+function tqsWrap(k){ const w=k.split(' '), out=[]; let l=''; w.forEach(x=>{ if((l+' '+x).trim().length>15){ out.push(l.trim()); l=x; } else l=(l+' '+x).trim(); }); out.push(l); return out; }
+function tqsTop10(g, page, asOf){
+  const all = DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d));
+  const top = all.filter(d=>d.segment===g.key).sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,10);
+  const total = top.reduce((s,d)=>s+(d.price||0),0);
+  const body = top.length ? top.map(d=>`<tr><td class="ctr">${escHtml(d.wo||'-')}</td>${g.bu?`<td class="ctr">${escHtml(d.biz||'-')}</td>`:''}<td>${escHtml(d.customer||'-')}</td><td>${escHtml(d.project||'-')}</td><td class="num">${fmt(d.price||0)}</td><td class="ctr">${mbxWOStatus(d)}</td></tr>`).join('') : `<tr><td colspan="6" class="ctr">ไม่มีข้อมูล</td></tr>`;
+  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
+    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+    <div class="tqs-sub">${g.title}</div><div class="tqs-date">ข้อมูลสรุปวันที่ ${asOf}</div>
+    <table class="tqs-table"><thead><tr><th>Quotation No.</th>${g.bu?'<th>Business Unit</th>':''}<th>Customer</th><th>Product / Service Name</th><th>Valuation</th><th>Status</th></tr></thead>
+    <tbody>${body}</tbody><tfoot><tr><td colspan="${g.bu?4:3}">Total</td><td class="num">${fmt(total)}</td><td></td></tr></tfoot></table>
+    <div class="tqs-page">${page}</div></div>`;
+}
+function tqsChartSlide(title, totalMB, page, asOf){
+  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
+    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+    <div class="tqs-sub">${title}</div>
+    <div class="tqs-panel"><div>${totalMB} MB</div><div>All Bucket</div></div>
+    <div class="tqs-chartbox"><canvas id="tqsCanvas"></canvas></div>
+    <div class="tqs-date" style="position:absolute;right:6cqw;bottom:1cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
+    <div class="tqs-page">${page}</div></div>`;
+}
+function tqsDrawChart(labels, target, val, appr, closed){
+  const ds=(l,d,c)=>({label:l,data:d,backgroundColor:c,borderRadius:2});
+  mbxDestroyChart('tqsChart');
+  mbxCharts['tqsChart']=new Chart(document.getElementById('tqsCanvas'),{
+    type:'bar', plugins:[mbxBarValueLabels],
+    data:{labels, datasets:[ds('Target Revenue',target,'#555'),ds('Valuation',val,'#009999'),ds('Valuation (Customer Approved)',appr,'#E86A33'),ds('Valuation (Closed&DO)',closed,'#6A0DAD')]},
+    options:{animation:false,maintainAspectRatio:false,layout:{padding:{top:22}},
+      plugins:{legend:{position:'top',labels:{boxWidth:9,font:{size:11}}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:12}}},y:{ticks:{callback:v=>v>=1e6?(v/1e6)+'M':v},grid:{color:'rgba(0,0,0,.06)'}}}}
+  });
+}
+function tqsShow(i){
+  tqsIdx = (i+TQS_TOTAL)%TQS_TOTAL;
+  const stage=document.getElementById('tqsStage');
+  const t=lastSyncTime||new Date();
+  const asOf=String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0')+'/'+t.getFullYear();
+  document.getElementById('tqsCount').textContent=(tqsIdx+1)+' / '+TQS_TOTAL;
+  const rows=DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d));
+  const isAppr=d=>{const v=(d.custApprove||'').trim();return v&&!/wait|pending/i.test(v);};
+  const sum=(rs,f)=>rs.filter(f||(()=>true)).reduce((s,d)=>s+(d.price||0),0);
+  const mb=n=>(n/1e6).toFixed(1);
+  if(tqsIdx<3){
+    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false},{key:'External Customer',title:'TOP 10 – <b>External Customer</b>',bu:false}][tqsIdx];
+    stage.innerHTML=tqsTop10(G,8+tqsIdx,asOf); return;
+  }
+  if(tqsIdx===3){
+    const seg=[['CPF Thailand','CPF Thailand',587e6],['CPG & Oversea','CPF Oversea & CPG',158.9e6],['External Customer','External Customer',76e6]];
+    stage.innerHTML=tqsChartSlide('TOTAL REVENUE BY CHANNEL',mb(sum(rows)),11,asOf);
+    const by=k=>rows.filter(d=>d.segment===k);
+    tqsDrawChart(seg.map(x=>x[1]),seg.map(x=>x[2]),seg.map(x=>sum(by(x[0]))),seg.map(x=>sum(by(x[0]),isAppr)),seg.map(x=>sum(by(x[0]),d=>d.done)));
+  } else {
+    const cpf=rows.filter(d=>d.segment==='CPF Thailand');
+    const keys=['Design & Construction management','Smart Manufacturing Machine','Panel Builder','AI IoT & Robotic / Industrial Automation','Maintenance & Calibration','Consultancy'];
+    const tg=[165.9e6,165.3e6,148.9e6,72.8e6,21e6,1.7e6];
+    const by=k=>cpf.filter(d=>(d.biz||'').trim()===k);
+    stage.innerHTML=tqsChartSlide('REVENUE – <b>CPF Thailand</b>',mb(sum(cpf)),12,asOf);
+    tqsDrawChart(keys.map(tqsWrap),tg,keys.map(k=>sum(by(k))),keys.map(k=>sum(by(k),isAppr)),keys.map(k=>sum(by(k),d=>d.done)));
+  }
+}
+function renderMonthboard(){ tqsShow(tqsIdx); }
+document.getElementById('tqsPrev').onclick=()=>tqsShow(tqsIdx-1);
+document.getElementById('tqsNext').onclick=()=>tqsShow(tqsIdx+1);
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('view-monthboard').style.display==='none') return;
+  if(['ArrowRight','PageDown',' '].includes(e.key)){ e.preventDefault(); tqsShow(tqsIdx+1); }
+  if(['ArrowLeft','PageUp'].includes(e.key)){ e.preventDefault(); tqsShow(tqsIdx-1); }
+});
 </script>
 
 </div><!-- /main-content -->
