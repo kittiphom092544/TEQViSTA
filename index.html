@@ -556,6 +556,12 @@
   .mbx-table td{ padding:5px 7px; border-bottom:1px solid var(--mbx-border); color:var(--mbx-text); }
   .mbx-table tbody tr:nth-child(even){ background:rgba(109,40,217,.03); }
   .mbx-table tbody tr:hover{ background:var(--mbx-purple-dim); }
+  .mbx-top10-table thead th{ background:#1E3A66; color:#fff; text-transform:none; font-size:10px; padding:6px 8px; border-bottom:none; }
+  .mbx-top10-table tbody tr:nth-child(even){ background:#F1F4F9; }
+  .mbx-top10-table tbody tr:nth-child(odd){ background:#fff; }
+  .mbx-top10-table tbody tr:hover{ background:#E3E9F5; }
+  .mbx-top10-table tfoot td{ background:#1E3A66; color:#fff; font-weight:800; padding:7px 8px; }
+  .mbx-top10-table .val-cell{ text-align:right; font-weight:700; }
   .mbx-bar-mini-track{ background:#EFEBFA; border-radius:5px; height:14px; overflow:hidden; min-width:80px; }
   .mbx-bar-mini-fill{ height:100%; border-radius:5px; background:var(--mbx-purple); }
   @media (max-width:1100px){ .mbx-kpi-row{ grid-template-columns:repeat(2,1fr); } .mbx-panel-row{ grid-template-columns:1fr; } .mbx-sidebar{ display:none; } }
@@ -2306,12 +2312,48 @@ function renderMbxDelivery(body, rows, prevRows, months){
         <div class="chart-box"><canvas id="mbxChartCPF"></canvas></div>
       </div>
       <div class="mbx-panel">
-        <div class="mbx-panel-title">มูลค่างาน — CPG & Oversea — ${escHtml(mbxCurrentMonthLabel())}</div>
+        <div class="mbx-panel-title">มูลค่างาน — CPF Oversea & CPG — ${escHtml(mbxCurrentMonthLabel())}</div>
         <div id="mbxRemainCPG" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:4px;"></div>
         <div class="chart-box"><canvas id="mbxChartCPG"></canvas></div>
       </div>
+      <div class="mbx-panel">
+        <div class="mbx-panel-title">มูลค่างาน — External Customer — ${escHtml(mbxCurrentMonthLabel())}</div>
+        <div id="mbxRemainExt" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:4px;"></div>
+        <div class="chart-box"><canvas id="mbxChartExt"></canvas></div>
+      </div>
+    </div>
+    <div class="mbx-panel-row">
+      <div class="mbx-panel" style="grid-column:1 / -1;">
+        <div class="mbx-panel-title">Revenue by Business Unit — CPF Thailand — ${escHtml(mbxCurrentMonthLabel())}</div>
+        <div class="chart-box" style="height:230px;"><canvas id="mbxChartBizUnit"></canvas></div>
+      </div>
+    </div>
+    <div class="mbx-panel-row">
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Thailand</div><div id="mbxTop10CPF"></div></div>
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Oversea & CPG</div><div id="mbxTop10CPG"></div></div>
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — External Customer</div><div id="mbxTop10Ext"></div></div>
     </div>
   `;
+  const mbxStatusLabel = d => isCancelled(d) ? 'Cancelled' : d.done ? 'Completed' : isOverdue(d) ? 'Overdue' : 'In Process';
+  const mbxStatusColor = { Completed:'#16A34A', 'In Process':'#6D28D9', Overdue:'#DC2626', Cancelled:'#9CA3AF' };
+  const renderTop10 = (elId, segKey) => {
+    const segRows = rows.filter(d=>d.segment===segKey).slice().sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,10);
+    const total = segRows.reduce((s,d)=>s+(d.price||0),0);
+    const el = document.getElementById(elId);
+    if(!el) return;
+    if(!segRows.length){ el.innerHTML = `<div style="text-align:center;color:#9CA3AF;padding:12px 0;font-size:11px;">ไม่มีข้อมูลในช่วงที่เลือก</div>`; return; }
+    el.innerHTML = `
+      <div style="max-height:280px; overflow-y:auto;">
+      <table class="mbx-table mbx-top10-table">
+        <thead><tr><th>WO</th><th>ประเภทงาน</th><th>ลูกค้า</th><th>โครงการ</th><th style="text-align:right;">Valuation</th><th>Status</th></tr></thead>
+        <tbody>${segRows.map(d=>`<tr><td>${escHtml(d.wo||'—')}</td><td>${escHtml(d.type||'—')}</td><td>${escHtml(d.customer||'—')}</td><td>${escHtml(d.project||'—')}</td><td class="val-cell">฿${fmt(d.price)}</td><td><span style="color:${mbxStatusColor[mbxStatusLabel(d)]};font-weight:700;">${mbxStatusLabel(d)}</span></td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="4">Total</td><td class="val-cell">฿${fmt(total)}</td><td></td></tr></tfoot>
+      </table>
+      </div>`;
+  };
+  renderTop10('mbxTop10CPF', 'CPF Thailand');
+  renderTop10('mbxTop10CPG', 'CPG & Oversea');
+  renderTop10('mbxTop10Ext', 'External Customer');
   const trendLabels = months.map(m=> (DATA.find(d=>d.month===m)||{}).monthLabel || m);
   const trendData = months.map(m=>{
     const mr = DATA.filter(d=>d.month===m && !isDuplicate(d) && !isCancelled(d));
@@ -2326,8 +2368,9 @@ function renderMbxDelivery(body, rows, prevRows, months){
 
   const isApproved = d => { const v=(d.custApprove||'').trim(); return v && !/wait|pending/i.test(v); };
   const SM_SEGMENTS = [
-    { key:'CPF Thailand', label:'CPF Thailand', target:165300000, canvas:'mbxChartCPF', remainEl:'mbxRemainCPF' },
-    { key:'CPG & Oversea', label:'CPG & Oversea', target:88800000, canvas:'mbxChartCPG', remainEl:'mbxRemainCPG' }
+    { key:'CPF Thailand', label:'CPF Thailand', target:587000000, canvas:'mbxChartCPF', remainEl:'mbxRemainCPF' },
+    { key:'CPG & Oversea', label:'CPF Oversea & CPG', target:158900000, canvas:'mbxChartCPG', remainEl:'mbxRemainCPG' },
+    { key:'External Customer', label:'External Customer', target:76000000, canvas:'mbxChartExt', remainEl:'mbxRemainExt' }
   ];
   const barOpts = { borderRadius:3, barPercentage:0.62, categoryPercentage:0.5 };
   const cumulativeMonths = mbSelectedMonth === '__ALL__' ? months : months.slice(0, months.indexOf(mbSelectedMonth)+1);
@@ -2375,6 +2418,46 @@ function renderMbxDelivery(body, rows, prevRows, months){
         }
       }
     });
+  });
+
+  // Revenue by Business Unit — CPF Thailand only (uses กลุ่มธุรกิจ / d.biz)
+  const BIZ_TARGETS = {
+    'Design & Construction management': 165900000,
+    'Smart Manufacturing Machine': 165300000,
+    'Panel Builder': 148900000,
+    'AI IoT & Robotic / Industrial Automation': 72800000,
+    'Maintenance & Calibration': 21000000,
+    'Consultancy': 1700000
+  };
+  const cpfRows = rows.filter(d=>d.segment==='CPF Thailand');
+  const bizKeys = Object.keys(BIZ_TARGETS);
+  const bizValuation = bizKeys.map(k=> cpfRows.filter(d=>(d.biz||'').trim()===k).reduce((s,d)=>s+(d.price||0),0));
+  const bizApproved = bizKeys.map(k=> cpfRows.filter(d=>(d.biz||'').trim()===k && isApproved(d)).reduce((s,d)=>s+(d.price||0),0));
+  const bizClosed = bizKeys.map(k=> cpfRows.filter(d=>(d.biz||'').trim()===k && d.done).reduce((s,d)=>s+(d.price||0),0));
+  const bizDatasets = [
+    { label:'Total Target', data:bizKeys.map(k=>BIZ_TARGETS[k]), backgroundColor:'#9CA3AF', borderRadius:3 },
+    { label:'มูลค่างานทั้งหมด', data:bizValuation, backgroundColor:'#14B8A6', borderRadius:3 },
+    { label:'งานที่ Approve', data:bizApproved, backgroundColor:'#F97316', borderRadius:3 },
+    { label:'งานที่ส่งมอบแล้ว', data:bizClosed, backgroundColor:'#6D28D9', borderRadius:3 }
+  ];
+  const bizMax = Math.max(1, ...bizDatasets.flatMap(ds=>ds.data));
+  mbxDestroyChart('mbxChartBizUnit');
+  mbxCharts['mbxChartBizUnit'] = new Chart(document.getElementById('mbxChartBizUnit'), {
+    type:'bar',
+    data:{ labels:bizKeys, datasets:bizDatasets },
+    plugins:[mbxBarValueLabels],
+    options:{
+      maintainAspectRatio:false,
+      layout:{ padding:{ top:26 } },
+      plugins:{
+        legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:8, font:{size:9.5} } },
+        tooltip:{ callbacks:{ label:ctx=> ctx.dataset.label+': ฿'+fmt(ctx.parsed.y) } }
+      },
+      scales:{
+        x:{ ticks:{ font:{size:9}, maxRotation:20, minRotation:0 }, grid:{ display:false } },
+        y:{ suggestedMax:bizMax*1.25, ticks:{ font:{size:9.5}, callback:v=> (v>=1000000? (v/1000000)+'M' : fmt(v)) }, grid:{ color:'rgba(0,0,0,.05)' } }
+      }
+    }
   });
 }
 
