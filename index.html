@@ -527,6 +527,31 @@
   .tqs-chip{ padding:3px 11px; border-radius:14px; font-size:12px; color:#cfd9e4; border:1px solid #2c3b4e; cursor:pointer; }
   .tqs-chip:hover{ border-color:#5b9bde; }
   .tqs-chip.active{ background:#1d5fa8; border-color:#1d5fa8; color:#fff; }
+  .tqs-diag{ position:absolute!important; left:5cqw; right:8cqw; bottom:4cqw; background:#fff3cd; border:1px solid #e0b64a; color:#5a4300; border-radius:6px; padding:1cqw 1.4cqw; font-size:1.25cqw; line-height:1.5; z-index:5; }
+  .tqs-ov{ position:absolute!important; left:3cqw; right:3cqw; top:9.5cqw; bottom:2.2cqw; display:grid; grid-template-columns:36% 19% 1fr; grid-template-rows:17cqw 13.5cqw 1fr; gap:.8cqw; font-size:1.15cqw; }
+  .tqs-box{ background:#fff; border:1px solid #d5dae1; border-radius:.4cqw; padding:.6cqw .8cqw; overflow:hidden; box-shadow:0 0 .6cqw rgba(0,0,0,.06); }
+  .tqs-box h4{ font-size:1.1cqw; font-weight:600; color:#333; margin-bottom:.4cqw; }
+  .tqs-tm{ display:flex; gap:.2cqw; height:calc(100% - 2cqw); }
+  .tqs-tm > div{ color:#fff; padding:.4cqw .5cqw; font-size:1.05cqw; overflow:hidden; }
+  .tqs-tm .col{ display:flex; flex-direction:column; gap:.2cqw; padding:0; }
+  .tqs-tm .col > div{ padding:.35cqw .5cqw; overflow:hidden; }
+  .tqs-tm b{ display:block; font-size:1.2cqw; }
+  .tqs-mt{ width:100%; border-collapse:collapse; font-size:1.15cqw; }
+  .tqs-mt th{ font-weight:600; text-align:right; padding:.3cqw .5cqw; border-bottom:1px solid #333; }
+  .tqs-mt td{ text-align:right; padding:.45cqw .5cqw; }
+  .tqs-mt td:first-child, .tqs-mt th:first-child{ text-align:right; font-weight:600; }
+  .tqs-mt tr:nth-child(odd) td{ background:#eef0f3; }
+  .tqs-mt td:last-child{ font-weight:700; }
+  .tqs-plain::before, .tqs-plain::after{ display:none; }
+  .tqs-plain{ background:#f7f8fb; }
+  .tqs-h2{ font-size:3.6cqw; font-weight:700; color:#222; margin:.6cqw 0 2.2cqw 1.2cqw; }
+  .tqs-h2 b{ color:#0b3d7a; }
+  .tqs-tt{ width:100%; border-collapse:collapse; table-layout:fixed; font-size:1.3cqw; }
+  .tqs-tt th{ background:#04407a; color:#fff; height:5.4cqw; border:1px solid #fff; font-weight:700; }
+  .tqs-tt td{ height:3.7cqw; text-align:right; padding:0 .8cqw; border:1px solid #fff; background:#dbe6f7; }
+  .tqs-tt tbody tr:nth-child(even) td{ background:#fff; }
+  .tqs-tt td:first-child{ text-align:center; font-weight:500; }
+  .tqs-tt tfoot td{ background:#dbe6f7; font-weight:700; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
   .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
@@ -4451,10 +4476,10 @@ renderPartsPage();
 
 // ---------- Slide deck (replaces old monthboard) ----------
 let tqsIdx = 0;
-const TQS_TOTAL = 5;
+const TQS_TOTAL = 6;
 function tqsWrap(k){ const w=k.split(' '), out=[]; let l=''; w.forEach(x=>{ if((l+' '+x).trim().length>15){ out.push(l.trim()); l=x; } else l=(l+' '+x).trim(); }); out.push(l); return out; }
 function tqsRows(){
-  return DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea')&&/smart\s*manufacturing/i.test(d.biz||'')&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
+  return DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea')&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
 }
 function tqsTop10(g, page, asOf){
   const all = tqsRows();
@@ -4505,6 +4530,80 @@ function tqsRenderFilters(){
   el.querySelectorAll('[data-month]').forEach(c=>c.onclick=()=>{ mbSelectedMonth=c.dataset.month; tqsShow(tqsIdx); });
   el.querySelectorAll('[data-type]').forEach(c=>c.onclick=()=>{ mbxTypeFilter=c.dataset.type; tqsShow(tqsIdx); });
 }
+function tqsDiag(){
+  return `<div class="tqs-diag"><b>ไม่พบงานตามตัวกรองที่เลือก</b> ลองเปลี่ยนเดือนหรือประเภท หรือกดรีเฟรชข้อมูล</div>`;
+}
+
+function tqsStatus(d){
+  if(d.done) return 'Closed';
+  const di=(d.doInvoice||'').trim();
+  if(di) return /inv/i.test(di)?'Invoice':'DO';
+  if(/wait|pending/i.test(d.jobApprove||'')||/wait|pending/i.test(d.custApprove||'')) return 'Quotation';
+  return ioPoType(d).tag==='PO'?'PO':'WO';
+}
+function tqsOverview(rows, asOf){
+  const ST=['Quotation','PO','WO','DO','Invoice','Closed'];
+  const COL={WO:'#1e8fff',Quotation:'#ffc800',Closed:'#1b1f9c',PO:'#e8368f',DO:'#7b2cbf',Invoice:'#ff8c1a'};
+  const val={},ord={},itm={};
+  ST.forEach(k=>{val[k]=0;ord[k]=new Set();itm[k]=0;});
+  rows.forEach(d=>{const k=tqsStatus(d);val[k]+=d.price||0;ord[k].add(d.wo||('id'+d.id));itm[k]+=1;});
+  const totV=ST.reduce((a,k)=>a+val[k],0), totO=ST.reduce((a,k)=>a+ord[k].size,0), totI=ST.reduce((a,k)=>a+itm[k],0);
+  const eff=totO?((totO-ord.Quotation.size)/totO*100):0;
+  // treemap
+  const items=ST.filter(k=>val[k]>0).sort((a,b)=>val[b]-val[a]);
+  const mb=n=>(n/1e6).toFixed(2);
+  const cell=(k,big)=>`<div style="background:${COL[k]};${k==='Quotation'?'color:#222;':''}flex:${val[k]}">${big?`<b>${k}</b>`:''}${big?mb(val[k])+'M':''}</div>`;
+  let tm='';
+  if(items.length){
+    const first=items[0], rest=items.slice(1);
+    const restSum=rest.reduce((a,k)=>a+val[k],0);
+    tm=`<div style="background:${COL[first]};flex:${val[first]};${first==='Quotation'?'color:#222;':''}"><b>${first}</b>${mb(val[first])}M</div>`
+      +(rest.length?`<div class="col" style="flex:${Math.max(restSum,val[first]*0.25)}">${rest.map((k,i)=>cell(k,i<2)).join('')}</div>`:'');
+  }
+  // details: top 4 by valuation
+  const top=[...rows].sort((a,b)=>(b.price||0)-(a.price||0)).slice(0,4);
+  const det=top.map(d=>`<tr><td style="text-align:left;font-weight:400">${escHtml(d.wo||'-')}</td><td style="text-align:left">${escHtml(d.project||'-')}</td><td>${fmt(d.price||0)}</td><td style="text-align:center">${tqsStatus(d)}</td></tr>`).join('');
+  const cells=(f)=>ST.map(k=>`<td>${f(k)}</td>`).join('');
+  const segs=[...new Set(rows.map(d=>d.segment))];
+  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
+    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+    <div class="tqs-date" style="position:absolute;right:4.5cqw;top:6.2cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
+    <div class="tqs-ov">
+      <div class="tqs-box"><h4>Total Revenue (MB)</h4><div class="tqs-tm">${tm||'<div style="color:#666">ไม่มีข้อมูล</div>'}</div></div>
+      <div class="tqs-box"><h4>Efficiency Order</h4><div style="font-size:.95cqw;color:#666">ออเดอร์ที่ไม่ใช่ Quotation / ออเดอร์ทั้งหมด</div>
+        <div style="font-size:4.6cqw;font-weight:700;color:#0a9a96;text-align:center;margin-top:1.6cqw">${eff.toFixed(1)}%</div></div>
+      <div style="display:flex;flex-direction:column;gap:.8cqw;grid-row:1 / 3">
+        <div class="tqs-box" style="flex:1"><h4>Type of Customer</h4>${['CPF Thailand','CPG & Oversea'].map(k=>`<div>${segs.includes(k)?'☑':'☐'} ${k==='CPG & Oversea'?'CPF Oversea &amp; CPG':k}</div>`).join('')}</div>
+        <div class="tqs-box" style="flex:1"><div>${(lastSyncTime||new Date()).toLocaleString('th-TH')}</div><div style="color:#666;font-size:.95cqw">Last Refresh</div></div>
+      </div>
+      <div class="tqs-box" style="grid-column:1 / 3"><table class="tqs-mt">
+        <thead><tr><th>Metric Name</th>${ST.map(k=>`<th>${k}</th>`).join('')}<th>Total</th></tr></thead>
+        <tbody>
+          <tr><td>จำนวน Order</td>${cells(k=>fmt(ord[k].size))}<td>${fmt(totO)}</td></tr>
+          <tr><td>จำนวนรายการสินค้า</td>${cells(k=>fmt(itm[k]))}<td>${fmt(totI)}</td></tr>
+          <tr><td>มูลค่า (Baht)</td>${cells(k=>fmt(val[k]))}<td>${fmt(totV)}</td></tr>
+        </tbody></table></div>
+      <div class="tqs-box" style="grid-column:1 / 4;grid-row:3"><h4>Details (Top 4)</h4><table class="tqs-mt" style="font-size:1cqw"><thead><tr><th style="text-align:left">Quotation No.</th><th style="text-align:left">Product / Service</th><th>Valuation</th><th>Status</th></tr></thead><tbody>${det}</tbody></table></div>
+    </div>
+    <div class="tqs-page">7</div></div>`;
+}
+
+function tqsTypeMonthSlide(){
+  const rs=DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea'));
+  const months=getMonthOrder();
+  const lbl=m=>(DATA.find(d=>d.month===m)||{}).monthLabel||m;
+  const types=[...new Set(rs.map(d=>d.type).filter(Boolean))].sort();
+  const n2=v=>v?v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'-';
+  const cell=(t,m)=>rs.filter(d=>d.type===t&&d.month===m).reduce((a,d)=>a+(d.price||0),0);
+  const body=types.map(t=>`<tr><td>${escHtml(t)}</td>${months.map(m=>`<td>${n2(cell(t,m))}</td>`).join('')}</tr>`).join('');
+  const sums=months.map(m=>rs.filter(d=>d.month===m).reduce((a,d)=>a+(d.price||0),0));
+  return `<div class="tqs-slide tqs-plain">
+    <div class="tqs-h2">ข้อมูลมูลค่างานแยก<b>ประเภท</b></div>
+    <table class="tqs-tt"><thead><tr><th style="width:15%">ประเภทงาน</th>${months.map(m=>`<th>${escHtml(lbl(m))}</th>`).join('')}</tr></thead>
+    <tbody>${body||`<tr><td colspan="${months.length+1}" style="text-align:center">ไม่มีข้อมูล</td></tr>`}</tbody>
+    <tfoot><tr><td>Sum</td>${sums.map(v=>`<td>${n2(v)}</td>`).join('')}</tr></tfoot></table>
+    <div class="tqs-logo" style="top:auto;bottom:2cqw;right:4cqw">TEQViSTA</div><div class="tqs-page" style="right:1cqw">14</div></div>`;
+}
 function tqsShow(i){
   if(!mbSelectedMonth) mbSelectedMonth='__ALL__';
   tqsRenderFilters();
@@ -4518,16 +4617,13 @@ function tqsShow(i){
   const sum=(rs,f)=>rs.filter(f||(()=>true)).reduce((s,d)=>s+(d.price||0),0);
   const mb=n=>(n/1e6).toFixed(1);
   const by=(rs,f)=>rs.filter(f);
-  if(tqsIdx<2){
-    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][tqsIdx];
-    stage.innerHTML=tqsTop10(G,8+tqsIdx,asOf); return;
+  if(tqsIdx===0){ stage.innerHTML=tqsOverview(rows,asOf); return; }
+  if(tqsIdx===5){ stage.innerHTML=tqsTypeMonthSlide(); return; }
+  if(tqsIdx<3){
+    const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][tqsIdx-1];
+    stage.innerHTML=tqsTop10(G,7+tqsIdx,asOf); return;
   }
-  if(tqsIdx===2){
-    const seg=[['CPF Thailand','CPF Thailand',587e6],['CPG & Oversea','CPF Oversea & CPG',158.9e6]];
-    stage.innerHTML=tqsChartSlide('TOTAL REVENUE BY CHANNEL',mb(sum(rows)),11,asOf);
-    const g=k=>rows.filter(d=>d.segment===k);
-    tqsDrawChart(seg.map(x=>x[1]),seg.map(x=>x[2]),seg.map(x=>sum(g(x[0]))),seg.map(x=>sum(g(x[0]),isAppr)),seg.map(x=>sum(g(x[0]),d=>d.done)));
-  } else {
+  {
     const isCPF=tqsIdx===3;
     const rs=rows.filter(d=>d.segment===(isCPF?'CPF Thailand':'CPG & Oversea'));
     const keys=['Smart Manufacturing Machine'];
@@ -4537,6 +4633,8 @@ function tqsShow(i){
     tqsDrawChart(keys.map(tqsWrap),tg,keys.map(k=>sum(g(k))),keys.map(k=>sum(g(k),isAppr)),keys.map(k=>sum(g(k),d=>d.done)));
   }
 }
+const _tqsShowRaw=tqsShow;
+tqsShow=function(i){ _tqsShowRaw(i); if(!tqsRows().length){ const sl=document.querySelector('#tqsStage .tqs-slide'); if(sl) sl.insertAdjacentHTML('beforeend',tqsDiag()); } };
 function renderMonthboard(){ tqsShow(tqsIdx); }
 document.getElementById('tqsPrev').onclick=()=>tqsShow(tqsIdx-1);
 document.getElementById('tqsNext').onclick=()=>tqsShow(tqsIdx+1);
