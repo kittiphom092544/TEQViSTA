@@ -2305,33 +2305,24 @@ function renderMbxDelivery(body, rows, prevRows, months){
       ${mbxKpiCard('🎯','Disruption Rate', (active.length?Math.round(overdue/active.length*100):0)+'%', null, 'teal')}
     </div>
     <div class="mbx-panel-row">
-      <div class="mbx-panel"><div class="mbx-panel-title">On-Time Rate by Month</div><div class="chart-box"><canvas id="mbxChartOtRate"></canvas></div></div>
-      <div class="mbx-panel">
-        <div class="mbx-panel-title">มูลค่างาน — CPF Thailand — ${escHtml(mbxCurrentMonthLabel())}</div>
-        <div id="mbxRemainCPF" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:4px;"></div>
-        <div class="chart-box"><canvas id="mbxChartCPF"></canvas></div>
-      </div>
-      <div class="mbx-panel">
-        <div class="mbx-panel-title">มูลค่างาน — CPF Oversea & CPG — ${escHtml(mbxCurrentMonthLabel())}</div>
-        <div id="mbxRemainCPG" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:4px;"></div>
-        <div class="chart-box"><canvas id="mbxChartCPG"></canvas></div>
-      </div>
-      <div class="mbx-panel">
-        <div class="mbx-panel-title">มูลค่างาน — External Customer — ${escHtml(mbxCurrentMonthLabel())}</div>
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Thailand</div><div id="mbxTop10CPF"></div></div>
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Oversea & CPG</div><div id="mbxTop10CPG"></div></div>
+      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — External Customer</div><div id="mbxTop10Ext"></div></div>
+    </div>
+    <div class="mbx-panel-row">
+      <div class="mbx-panel" style="grid-column:1 / -1;">
+        <div class="mbx-panel-title">TOTAL REVENUE BY CHANNEL — ${escHtml(mbxCurrentMonthLabel())}</div>
+        <div id="mbxRemainCPF" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:2px;"></div>
+        <div id="mbxRemainCPG" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:2px;"></div>
         <div id="mbxRemainExt" style="font-size:10.5px; color:var(--mbx-dim); margin-bottom:4px;"></div>
-        <div class="chart-box"><canvas id="mbxChartExt"></canvas></div>
+        <div class="chart-box" style="height:260px;"><canvas id="mbxChartTotalRevenue"></canvas></div>
       </div>
     </div>
     <div class="mbx-panel-row">
       <div class="mbx-panel" style="grid-column:1 / -1;">
-        <div class="mbx-panel-title">Revenue by Business Unit — CPF Thailand — ${escHtml(mbxCurrentMonthLabel())}</div>
+        <div class="mbx-panel-title">REVENUE — CPF Thailand (by Business Unit) — ${escHtml(mbxCurrentMonthLabel())}</div>
         <div class="chart-box" style="height:230px;"><canvas id="mbxChartBizUnit"></canvas></div>
       </div>
-    </div>
-    <div class="mbx-panel-row">
-      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Thailand</div><div id="mbxTop10CPF"></div></div>
-      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — CPF Oversea & CPG</div><div id="mbxTop10CPG"></div></div>
-      <div class="mbx-panel"><div class="mbx-panel-title">TOP 10 — External Customer</div><div id="mbxTop10Ext"></div></div>
     </div>
   `;
   const mbxStatusLabel = d => isCancelled(d) ? 'Cancelled' : d.done ? 'Completed' : isOverdue(d) ? 'Overdue' : 'In Process';
@@ -2354,70 +2345,56 @@ function renderMbxDelivery(body, rows, prevRows, months){
   renderTop10('mbxTop10CPF', 'CPF Thailand');
   renderTop10('mbxTop10CPG', 'CPG & Oversea');
   renderTop10('mbxTop10Ext', 'External Customer');
-  const trendLabels = months.map(m=> (DATA.find(d=>d.month===m)||{}).monthLabel || m);
-  const trendData = months.map(m=>{
-    const mr = DATA.filter(d=>d.month===m && !isDuplicate(d) && !isCancelled(d));
-    return mr.length ? Math.round((mr.length-mr.filter(isOverdue).length)/mr.length*100) : 0;
-  });
-  mbxDestroyChart('mbxChartOtRate');
-  mbxCharts['mbxChartOtRate'] = new Chart(document.getElementById('mbxChartOtRate'), {
-    type:'line',
-    data:{ labels:trendLabels, datasets:[{ data:trendData, borderColor:'#F97316', backgroundColor:'rgba(249,115,22,.1)', fill:true, tension:.3, pointRadius:3 }] },
-    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{min:0,max:100,ticks:{callback:v=>v+'%'}} } }
-  });
 
   const isApproved = d => { const v=(d.custApprove||'').trim(); return v && !/wait|pending/i.test(v); };
   const SM_SEGMENTS = [
-    { key:'CPF Thailand', label:'CPF Thailand', target:587000000, canvas:'mbxChartCPF', remainEl:'mbxRemainCPF' },
-    { key:'CPG & Oversea', label:'CPF Oversea & CPG', target:158900000, canvas:'mbxChartCPG', remainEl:'mbxRemainCPG' },
-    { key:'External Customer', label:'External Customer', target:76000000, canvas:'mbxChartExt', remainEl:'mbxRemainExt' }
+    { key:'CPF Thailand', label:'CPF Thailand', target:587000000, remainEl:'mbxRemainCPF' },
+    { key:'CPG & Oversea', label:'CPF Oversea & CPG', target:158900000, remainEl:'mbxRemainCPG' },
+    { key:'External Customer', label:'External Customer', target:76000000, remainEl:'mbxRemainExt' }
   ];
-  const barOpts = { borderRadius:3, barPercentage:0.62, categoryPercentage:0.5 };
   const cumulativeMonths = mbSelectedMonth === '__ALL__' ? months : months.slice(0, months.indexOf(mbSelectedMonth)+1);
+  const segValuation = [], segApproved = [], segClosed = [];
   SM_SEGMENTS.forEach(g=>{
     const rs = rows.filter(d=>d.segment===g.key);
-    const valuation = rs.reduce((s,d)=>s+(d.price||0),0);
-    const approvedVal = rs.filter(isApproved).reduce((s,d)=>s+(d.price||0),0);
-    const closedVal = rs.filter(d=>d.done).reduce((s,d)=>s+(d.price||0),0);
+    segValuation.push(rs.reduce((s,d)=>s+(d.price||0),0));
+    segApproved.push(rs.filter(isApproved).reduce((s,d)=>s+(d.price||0),0));
+    segClosed.push(rs.filter(d=>d.done).reduce((s,d)=>s+(d.price||0),0));
 
-    // "remaining to target" — cumulative year-to-date (all months up to and including the one selected), not just this one month
+    // "remaining to target" — cumulative year-to-date (all months up to and including the one selected)
     const ytdRows = DATA.filter(d=> !isDuplicate(d) && cumulativeMonths.includes(d.month) && d.segment===g.key && (!mbxTypeFilter || d.type===mbxTypeFilter));
     const ytdValuation = ytdRows.reduce((s,d)=>s+(d.price||0),0);
     const remain = g.target - ytdValuation;
     const remainEl = document.getElementById(g.remainEl);
     if(remainEl){
-      remainEl.innerHTML = remain > 0
+      remainEl.innerHTML = `<b>${escHtml(g.label)}:</b> ` + (remain > 0
         ? `ห่างจากเป้าหมาย (${fmt(g.target)}) สะสม ${cumulativeMonths.length} เดือน อีก <b style="color:var(--mbx-red);">฿${fmt(remain)}</b>`
-        : `เกินเป้าหมาย (${fmt(g.target)}) สะสม ${cumulativeMonths.length} เดือน แล้ว <b style="color:var(--mbx-green);">฿${fmt(-remain)}</b>`;
+        : `เกินเป้าหมาย (${fmt(g.target)}) สะสม ${cumulativeMonths.length} เดือน แล้ว <b style="color:var(--mbx-green);">฿${fmt(-remain)}</b>`);
     }
-
-    const datasets = [];
-    if(mbSelectedMonth === '__ALL__'){
-      datasets.push({ label:'Total Target', data:[g.target], backgroundColor:'#9CA3AF', ...barOpts });
-    }
-    datasets.push({ label:'มูลค่างานทั้งหมด', data:[valuation], backgroundColor:'#14B8A6', ...barOpts });
-    datasets.push({ label:'งานที่ Approve', data:[approvedVal], backgroundColor:'#F97316', ...barOpts });
-    datasets.push({ label:'งานที่ส่งมอบแล้ว', data:[closedVal], backgroundColor:'#6D28D9', ...barOpts });
-    const maxVal = Math.max(1, ...datasets.flatMap(ds=>ds.data));
-
-    mbxDestroyChart(g.canvas);
-    mbxCharts[g.canvas] = new Chart(document.getElementById(g.canvas), {
-      type:'bar',
-      data:{ labels:[g.label], datasets },
-      plugins:[mbxBarValueLabels],
-      options:{
-        maintainAspectRatio:false,
-        layout:{ padding:{ top:26 } },
-        plugins:{
-          legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:8, font:{size:9.5} } },
-          tooltip:{ callbacks:{ label:ctx=> ctx.dataset.label+': ฿'+fmt(ctx.parsed.y) } }
-        },
-        scales:{
-          x:{ ticks:{ font:{size:10.5} }, grid:{ display:false } },
-          y:{ suggestedMax:maxVal*1.25, ticks:{ font:{size:9.5}, callback:v=> (v>=1000000? (v/1000000)+'M' : fmt(v)) }, grid:{ color:'rgba(0,0,0,.05)' } }
-        }
+  });
+  const totalRevDatasets = [
+    { label:'Total Target', data:SM_SEGMENTS.map(g=>g.target), backgroundColor:'#9CA3AF', borderRadius:3, barPercentage:0.62, categoryPercentage:0.68 },
+    { label:'มูลค่างานทั้งหมด', data:segValuation, backgroundColor:'#14B8A6', borderRadius:3, barPercentage:0.62, categoryPercentage:0.68 },
+    { label:'งานที่ Approve', data:segApproved, backgroundColor:'#F97316', borderRadius:3, barPercentage:0.62, categoryPercentage:0.68 },
+    { label:'งานที่ส่งมอบแล้ว', data:segClosed, backgroundColor:'#6D28D9', borderRadius:3, barPercentage:0.62, categoryPercentage:0.68 }
+  ];
+  const totalRevMax = Math.max(1, ...totalRevDatasets.flatMap(ds=>ds.data));
+  mbxDestroyChart('mbxChartTotalRevenue');
+  mbxCharts['mbxChartTotalRevenue'] = new Chart(document.getElementById('mbxChartTotalRevenue'), {
+    type:'bar',
+    data:{ labels:SM_SEGMENTS.map(g=>g.label), datasets:totalRevDatasets },
+    plugins:[mbxBarValueLabels],
+    options:{
+      maintainAspectRatio:false,
+      layout:{ padding:{ top:26 } },
+      plugins:{
+        legend:{ display:true, position:'top', labels:{ boxWidth:8, padding:8, font:{size:9.5} } },
+        tooltip:{ callbacks:{ label:ctx=> ctx.dataset.label+': ฿'+fmt(ctx.parsed.y) } }
+      },
+      scales:{
+        x:{ ticks:{ font:{size:10.5} }, grid:{ display:false } },
+        y:{ suggestedMax:totalRevMax*1.25, ticks:{ font:{size:9.5}, callback:v=> (v>=1000000? (v/1000000)+'M' : fmt(v)) }, grid:{ color:'rgba(0,0,0,.05)' } }
       }
-    });
+    }
   });
 
   // Revenue by Business Unit — CPF Thailand only (uses กลุ่มธุรกิจ / d.biz)
