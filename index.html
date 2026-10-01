@@ -562,6 +562,15 @@
   .tqs-kc .l{ font-size:1.25cqw; color:#555; }
   .tqs-kc .v{ font-size:3.3cqw; font-weight:700; line-height:1.25; }
   .tqs-kc .s{ font-size:1cqw; color:#777; }
+  @keyframes tqsUp{ from{opacity:0;transform:translateY(1.4cqw)} to{opacity:1;transform:none} }
+  .tqs-kc{ position:relative; animation:tqsUp .6s both; transition:transform .2s, box-shadow .2s; overflow:hidden; }
+  .tqs-kc:hover{ transform:translateY(-.45cqw); box-shadow:0 .8cqw 1.8cqw rgba(11,61,122,.2); }
+  .tqs-kc .ic{ position:absolute; right:1cqw; top:.8cqw; font-size:2.3cqw; }
+  .tqs-kc .bar{ height:.5cqw; background:#e6e9ee; border-radius:1cqw; margin-top:.8cqw; overflow:hidden; }
+  .tqs-kc .bar i{ display:block; height:100%; width:0; border-radius:1cqw; transition:width 1.2s cubic-bezier(.2,.8,.2,1); }
+  .tqs-kc .dc{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:2.6cqw; font-weight:700; color:#16a34a; pointer-events:none; }
+  .tqs-kc .dc small{ font-size:1cqw; color:#777; font-weight:400; }
+  .tqs-checkpanel{ background:#fff8e1; color:#5a4300; padding:10px 22px; font-size:13px; line-height:1.7; border-bottom:1px solid #e0b64a; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
   .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
@@ -1014,6 +1023,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button class="chip-clear" id="partsSyncBtn">🔄 ดึงจากข้อมูลหลัก</button>
       <button class="chip-clear" id="partsExportBtn">⬇ Export ข้อมูล</button>
       <button class="chip-clear" id="partsImportBtn">⬆ Import ข้อมูล</button>
       <input type="file" id="partsImportFileInput" accept="application/json" style="display:none;">
@@ -1024,6 +1034,8 @@
   </div>
   <div class="wrap" style="padding-top:8px;">
     <p style="font-size:11px;color:var(--dim,#9CA3AF);margin:0 0 4px;">ย้ายเครื่อง/ย้ายโดเมน? กด "Export ข้อมูล" ที่เว็บเดิมเพื่อโหลดไฟล์สำรอง แล้วมากด "Import ข้อมูล" ที่เว็บใหม่ — ไม่ต้องอัปโหลด PDF ซ้ำ</p>
+    <div id="partsBackupNote"></div>
+    <div id="partsSyncNote"></div>
   </div>
 
   <div class="wrap" style="padding-top:22px;">
@@ -1401,6 +1413,7 @@
     <div class="tqs-bar">
       <div class="tqs-bar-title">TEQViSTA Workorder Update</div>
       <div class="tqs-bar-actions">
+        <button class="mbx-btn-outline" id="tqsCheck">🔍 ตรวจข้อมูล</button>
         <button class="mbx-btn-outline" id="tqsPrev">◀ ก่อนหน้า</button>
         <span id="tqsCount" class="tqs-count"></span>
         <button class="mbx-btn-outline" id="tqsNext">ถัดไป ▶</button>
@@ -1409,6 +1422,7 @@
       </div>
     </div>
     <div class="tqs-filters" id="tqsFilters"></div>
+    <div class="tqs-checkpanel" id="tqsCheckPanel" style="display:none"></div>
     <div class="tqs-stage" id="tqsStage"></div>
   </div>
 </div>
@@ -1809,9 +1823,20 @@ async function fetchSheetData(){
     let rows = RAW_ROWS
       .filter(r => toNum(r['ลำดับ']) !== null)
       .map((r,i) => transformRow(r,i));
+    const skipped = RAW_ROWS.filter(r=>toNum(r['ลำดับ'])===null && Object.values(r).some(v=>String(v||'').trim()!=='')).length;
     rows = applyLocalEdits(rows);
+    const woCount={}; rows.forEach(r=>{ if(r.wo) woCount[r.wo]=(woCount[r.wo]||0)+1; });
+    window.__loadStats = {
+      raw: RAW_ROWS.length, loaded: rows.length, skipped,
+      noWO: rows.filter(r=>!r.wo).length, noMonth: rows.filter(r=>!r.month).length,
+      dup: rows.filter(isDuplicate).length, cancelled: rows.filter(isCancelled).length,
+      edited: rows.filter(r=>r.edited).length,
+      sharedWO: Object.entries(woCount).filter(([k,v])=>v>1).length,
+      editedShared: rows.filter(r=>r.edited&&r.wo&&woCount[r.wo]>1).length
+    };
     DATA = rows;
     lastSyncTime = new Date();
+    try{ syncPartsFromMain(false); }catch(e){ console.warn('parts sync failed', e); }
     setSyncStatus('ok', 'เชื่อมต่อแล้ว · ' + lastSyncTime.toLocaleTimeString('th-TH',{hour12:false}));
     clearError();
     return true;
@@ -3356,7 +3381,64 @@ function loadPartsData(){
   catch(e){ return {}; }
 }
 function savePartsData(d){
-  localStorage.setItem(PARTS_KEY, JSON.stringify(d));
+  try{ localStorage.setItem(PARTS_KEY, JSON.stringify(d)); return true; }
+  catch(e){
+    alert('บันทึกข้อมูลไม่สำเร็จ — พื้นที่เก็บข้อมูลของเบราว์เซอร์เต็มหรือถูกบล็อก\nข้อมูลล่าสุดที่เพิ่งเพิ่ม/แก้ยังไม่ถูกบันทึก กรุณากด "Export ข้อมูล" เพื่อสำรองไฟล์ทันที');
+    return false;
+  }
+}
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+
+// ---------- Pull unfinished spare-part WOs from the main sheet into the tracking page ----------
+const PARTS_OPEN_RE = /in\s*process|on\s*order/i;
+function syncPartsFromMain(manual){
+  if(!DATA.length) return null;
+  const open = DATA.filter(d=>d.wo && /อะไหล่/.test(d.type||'') && PARTS_OPEN_RE.test(d.prodStatus||'') && !isCancelled(d) && !isDuplicate(d));
+  const byWo = {};
+  open.forEach(d=>{ (byWo[d.wo]=byWo[d.wo]||[]).push(d); });
+  const data = loadPartsData();
+  let newWo=0, newItems=0, closed=0;
+  Object.entries(byWo).forEach(([wo,rs])=>{
+    const mk = d=>({ matcode:'', desc:(d.project||'').trim(), qty:d.qty!==null&&d.qty!==undefined?String(d.qty):'', unitPrice:'', amount:'', received:false, fromMain:true });
+    const cur = data[wo];
+    if(!cur){
+      const cust = rs[0].customer||'';
+      data[wo] = { wo, factory:(typeof findFactoryCodeInText==='function'&&findFactoryCodeInText(cust))||cust, date:rs[0].expectedDate||rs[0].dateReceived||'',
+        items:rs.map(mk), totalValue:null, archived:false, createdAt:new Date().toISOString(), lastUpdatedAt:new Date().toISOString(), fileName:'(ดึงจากข้อมูลหลัก)', source:'main' };
+      newWo++; newItems+=rs.length;
+    } else if(!cur.archived){
+      const have = new Set((cur.items||[]).map(i=>(i.desc||'').trim().toLowerCase()));
+      rs.forEach(d=>{ const it=mk(d); if(it.desc && !have.has(it.desc.toLowerCase())){ cur.items=(cur.items||[]).concat(it); have.add(it.desc.toLowerCase()); newItems++; } });
+    }
+  });
+  // WOs that came from the main sheet and are no longer In Process / On Order there -> finished, move to archive
+  Object.values(data).forEach(w=>{
+    if(w.source==='main' && !w.archived && !byWo[w.wo]){ w.archived=true; w.archivedAt=new Date().toISOString(); closed++; }
+  });
+  if(newWo||newItems||closed){ if(!savePartsData(data)) return null; }
+  const note=document.getElementById('partsSyncNote');
+  const txt='🔄 ดึงจากข้อมูลหลัก ('+new Date().toLocaleTimeString('th-TH')+'): งานอะไหล่ที่ยังไม่เสร็จ (In Process / On Order) '+Object.keys(byWo).length+' WO · เพิ่มใหม่ '+newWo+' WO / '+newItems+' รายการ · ปิดอัตโนมัติ '+closed+' WO';
+  if(note){ note.style.cssText='font-size:12px;color:#9CA3AF;margin:4px 0 0;'; note.textContent=txt; }
+  const v=document.getElementById('view-parts');
+  if((newWo||newItems||closed) && v && v.style.display!=='none') renderPartsPage();
+  if(manual) alert('ดึงจากข้อมูลหลักเรียบร้อย\n\nงานอะไหล่ที่ยังไม่เสร็จ: '+Object.keys(byWo).length+' WO\nเพิ่มใหม่: '+newWo+' WO ('+newItems+' รายการ)\nปิดอัตโนมัติ (เสร็จแล้ว): '+closed+' WO');
+  return {newWo,newItems,closed};
+}
+function partsBackupNoteUpdate(){
+  const el=document.getElementById('partsBackupNote'); if(!el) return;
+  const n=Object.keys(loadPartsData()).length;
+  const last=localStorage.getItem('tvn_parts_last_export');
+  const days=last?Math.floor((Date.now()-new Date(last).getTime())/86400000):null;
+  let html='';
+  if(n===0){
+    html='⚠️ ตอนนี้ไม่มีข้อมูลเก็บอยู่ในเบราว์เซอร์นี้ (เว็บ: '+escHtml(location.host)+') — ข้อมูลหน้านี้เก็บในเบราว์เซอร์ ไม่ได้อยู่บนเซิร์ฟเวอร์หรือในชีต ถ้าเคยอัปโหลดไว้ที่ลิงก์ เบราว์เซอร์ หรือเครื่องอื่น ให้กด Export จากที่นั่น แล้ว Import ที่นี่';
+  } else if(days===null || days>=7){
+    html='⚠️ มีข้อมูล '+n+' WO เก็บในเบราว์เซอร์นี้เท่านั้น และ'+(days===null?'ยังไม่เคยสำรองไฟล์':'สำรองล่าสุดเมื่อ '+days+' วันก่อน')+' — กด "Export ข้อมูล" เก็บไฟล์ไว้ ถ้าล้างแคช เปลี่ยนเครื่อง หรือเปลี่ยนลิงก์ ข้อมูลจะหาย';
+  } else {
+    html='✅ สำรองข้อมูลล่าสุดเมื่อ '+(days===0?'วันนี้':days+' วันก่อน');
+  }
+  el.style.cssText='font-size:12px;margin:2px 0 0;padding:6px 10px;border-radius:6px;'+(html.startsWith('⚠')?'background:rgba(245,158,11,.14);color:#f5b942;':'color:#9CA3AF;');
+  el.innerHTML=html;
 }
 function escHtml(s){
   return (s===undefined||s===null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -4294,6 +4376,7 @@ document.getElementById('partsViewModalBackdrop').addEventListener('click', e=>{
   if(e.target.id === 'partsViewModalBackdrop') closePartsViewModal();
 });
 function renderPartsPage(){
+  partsBackupNoteUpdate();
   renderPartsKpi();
   renderPartsTabs();
   renderPartsCards();
@@ -4412,6 +4495,7 @@ document.getElementById('partsClearAllBtn').onclick = ()=>{
 partsFileInput.onchange = (e)=>{ handlePartsFiles(e.target.files); partsFileInput.value=''; };
 
 // ---------- Export / Import (move data between domains — localStorage doesn't follow you) ----------
+document.getElementById('partsSyncBtn').onclick = ()=>{ if(!syncPartsFromMain(true)) alert('ยังไม่มีข้อมูลหลักที่โหลดมา หรือบันทึกไม่สำเร็จ'); };
 document.getElementById('partsExportBtn').onclick = ()=>{
   const bundle = {
     _type: 'tvn_parts_wo_backup',
@@ -4430,6 +4514,8 @@ document.getElementById('partsExportBtn').onclick = ()=>{
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  try{ localStorage.setItem('tvn_parts_last_export', new Date().toISOString()); }catch(e){}
+  partsBackupNoteUpdate();
 };
 const partsImportFileInput = document.getElementById('partsImportFileInput');
 document.getElementById('partsImportBtn').onclick = ()=> partsImportFileInput.click();
@@ -4482,7 +4568,7 @@ renderPartsPage();
 
 // ---------- Slide deck (replaces old monthboard) ----------
 let tqsIdx = 0;
-const TQS_TOTAL = 7;
+const TQS_TOTAL = 6;
 function tqsWrap(k){ const w=k.split(' '), out=[]; let l=''; w.forEach(x=>{ if((l+' '+x).trim().length>15){ out.push(l.trim()); l=x; } else l=(l+' '+x).trim(); }); out.push(l); return out; }
 function tqsRows(){
   return DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea')&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
@@ -4592,47 +4678,19 @@ function tqsOverview(rows, asOf){
 
 function tqsTypeMonthSlide(){
   const rs=DATA.filter(d=>!isDuplicate(d)&&!isCancelled(d)&&(d.segment==='CPF Thailand'||d.segment==='CPG & Oversea'));
-  const months=getMonthOrder();
   const lbl=m=>(DATA.find(d=>d.month===m)||{}).monthLabel||m;
-  const types=[...new Set(rs.map(d=>d.type).filter(Boolean))].sort();
+  const cols=getMonthOrder().filter(Boolean).map(m=>({k:m,l:lbl(m)}));
+  if(rs.some(d=>!d.month)) cols.push({k:'',l:'ไม่ระบุเดือน'});
+  const types=[...new Set(rs.map(d=>d.type||'ไม่ระบุประเภท'))].sort();
   const n2=v=>v?v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'-';
-  const cell=(t,m)=>rs.filter(d=>d.type===t&&d.month===m).reduce((a,d)=>a+(d.price||0),0);
-  const body=types.map(t=>`<tr><td>${escHtml(t)}</td>${months.map(m=>`<td>${n2(cell(t,m))}</td>`).join('')}</tr>`).join('');
-  const sums=months.map(m=>rs.filter(d=>d.month===m).reduce((a,d)=>a+(d.price||0),0));
+  const sum=(t,c)=>rs.filter(d=>(t===null||(d.type||'ไม่ระบุประเภท')===t)&&(d.month||'')===c.k).reduce((a,d)=>a+(d.price||0),0);
+  const body=types.map(t=>`<tr><td>${escHtml(t)}</td>${cols.map(c=>`<td>${n2(sum(t,c))}</td>`).join('')}</tr>`).join('');
   return `<div class="tqs-slide tqs-plain">
     <div class="tqs-h2">ข้อมูลมูลค่างานแยก<b>ประเภท</b></div>
-    <table class="tqs-tt"><thead><tr><th style="width:15%">ประเภทงาน</th>${months.map(m=>`<th>${escHtml(lbl(m))}</th>`).join('')}</tr></thead>
-    <tbody>${body||`<tr><td colspan="${months.length+1}" style="text-align:center">ไม่มีข้อมูล</td></tr>`}</tbody>
-    <tfoot><tr><td>Sum</td>${sums.map(v=>`<td>${n2(v)}</td>`).join('')}</tr></tfoot></table>
+    <table class="tqs-tt"><thead><tr><th style="width:15%">ประเภทงาน</th>${cols.map(c=>`<th>${escHtml(c.l)}</th>`).join('')}</tr></thead>
+    <tbody>${body||`<tr><td colspan="${cols.length+1}" style="text-align:center">ไม่มีข้อมูล</td></tr>`}</tbody>
+    <tfoot><tr><td>Sum</td>${cols.map(c=>`<td>${n2(sum(null,c))}</td>`).join('')}</tr></tfoot></table>
     <div class="tqs-logo" style="top:auto;bottom:2cqw;right:4cqw">TEQViSTA</div><div class="tqs-page" style="right:1cqw">14</div></div>`;
-}
-
-function tqsKpiSlide(asOf){
-  const rows=DATA.filter(d=>!isDuplicate(d)&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
-  const total=rows.length, cancelled=rows.filter(isCancelled).length, done=rows.filter(r=>r.done).length, pending=total-done-cancelled;
-  const P=n=>total?(n/total*100).toFixed(1):'0.0';
-  const sm=f=>rows.reduce((a,r)=>a+(r[f]||0),0), cn=f=>rows.filter(r=>r[f]!==null&&r[f]!==undefined).length;
-  const actual=rows.filter(r=>r.done).reduce((a,r)=>a+(r.price||0),0);
-  const noPrice=rows.filter(r=>r.price===null&&!isCancelled(r)).length;
-  const C={navy:'#0b3d7a',green:'#16a34a',red:'#e5484d',slate:'#6b7280',amber:'#d98a0b'};
-  const cards=[
-    ['งานทั้งหมด',total,'รายการ (ไม่รวมงานซ้ำ)','navy'],
-    ['เสร็จสมบูรณ์',P(done)+'%',done+' จาก '+total+' งาน','green'],
-    ['ยังค้างอยู่',pending,'ต้องติดตาม · '+P(pending)+'% ของทั้งหมด','red'],
-    ['ยกเลิก',cancelled,P(cancelled)+'% ของทั้งหมด','slate'],
-    ['ต้นทุนรวม (Matcode)',fmt(sm('matcode')),'คิดจาก '+cn('matcode')+' จาก '+total+' รายการ ('+P(cn('matcode'))+'%)','amber'],
-    ['รายได้รวม (Price)',fmt(sm('price')),'คิดจาก '+cn('price')+' จาก '+total+' รายการ ('+P(cn('price'))+'%)','navy'],
-    ['รายได้ที่เกิดขึ้นจริง',fmt(actual),'คิดจาก '+done+' จาก '+total+' รายการ ('+P(done)+'%)','green'],
-    ['ยังไม่มีราคา',noPrice,P(noPrice)+'% ของทั้งหมด (ไม่รวมยกเลิก)','red'],
-    ['Labor Cost',fmt(sm('laborCost')),'คิดจาก '+cn('laborCost')+' จาก '+total+' รายการ ('+P(cn('laborCost'))+'%)','amber'],
-    ['Cost Overhead',fmt(sm('costOverhead')),'คิดจาก '+cn('costOverhead')+' จาก '+total+' รายการ ('+P(cn('costOverhead'))+'%)','amber'],
-    ['Standard Cost',fmt(sm('standardCost')),'คิดจาก '+cn('standardCost')+' จาก '+total+' รายการ ('+P(cn('standardCost'))+'%)','amber']
-  ];
-  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
-    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
-    <div class="tqs-date" style="position:absolute;right:4.5cqw;top:6.2cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
-    <div class="tqs-kpi">${cards.map(c=>`<div class="tqs-kc" style="border-left-color:${C[c[3]]}"><div class="l">${c[0]}</div><div class="v" style="color:${C[c[3]]}">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('')}</div>
-    <div class="tqs-page">6</div></div>`;
 }
 function tqsShow(i){
   if(!mbSelectedMonth) mbSelectedMonth='__ALL__';
@@ -4647,9 +4705,8 @@ function tqsShow(i){
   const sum=(rs,f)=>rs.filter(f||(()=>true)).reduce((s,d)=>s+(d.price||0),0);
   const mb=n=>(n/1e6).toFixed(1);
   const by=(rs,f)=>rs.filter(f);
-  if(tqsIdx===0){ stage.innerHTML=tqsKpiSlide(asOf); return; }
-  const ti=tqsIdx-1;
-  if(ti===0){ stage.innerHTML=tqsOverview(rows,asOf); return; }
+  if(tqsIdx===0){ stage.innerHTML=tqsKpiSlide(asOf); tqsKpiFx(stage); return; }
+  const ti=tqsIdx;
   if(ti===5){ stage.innerHTML=tqsTypeMonthSlide(); return; }
   if(ti<3){
     const G=[{key:'CPF Thailand',title:'TOP 10 – <b>CPF Thailand</b>',bu:true},{key:'CPG & Oversea',title:'TOP 10 – <b>CPG &amp; CPF Overseas</b>',bu:false}][ti-1];
@@ -4666,8 +4723,23 @@ function tqsShow(i){
   }
 }
 const _tqsShowRaw=tqsShow;
-tqsShow=function(i){ _tqsShowRaw(i); if(tqsIdx>=1&&tqsIdx<=5&&!tqsRows().length){ const sl=document.querySelector('#tqsStage .tqs-slide'); if(sl) sl.insertAdjacentHTML('beforeend',tqsDiag()); } };
+tqsShow=function(i){ _tqsShowRaw(i); if(tqsIdx>=1&&tqsIdx<=4&&!tqsRows().length){ const sl=document.querySelector('#tqsStage .tqs-slide'); if(sl) sl.insertAdjacentHTML('beforeend',tqsDiag()); } };
 function renderMonthboard(){ tqsShow(tqsIdx); }
+document.getElementById('tqsCheck').onclick=()=>{
+  const p=document.getElementById('tqsCheckPanel'), st=window.__loadStats;
+  if(p.style.display!=='none'){ p.style.display='none'; return; }
+  p.style.display='block';
+  if(!st){ p.textContent='ยังไม่มีข้อมูลที่โหลดมา'; return; }
+  const line=(ok,t)=>`<div>${ok?'✅':'⚠️'} ${t}</div>`;
+  p.innerHTML=`<b>ตรวจข้อมูลจากชีต</b> (โหลดล่าสุด ${(lastSyncTime||new Date()).toLocaleTimeString('th-TH')})`
+   +line(true,`แถวในชีต ${st.raw} แถว → แสดงในระบบ ${st.loaded} งาน`)
+   +line(st.skipped===0,`แถวที่ถูกข้ามเพราะช่อง "ลำดับ" ว่างหรือไม่ใช่ตัวเลข: ${st.skipped} แถว`)
+   +line(st.noWO===0,`งานที่ไม่มีเลข WO: ${st.noWO} (ไม่มีเลข WO จะไม่มีเดือน)`)
+   +line(st.noMonth===0,`งานที่หาเดือนไม่ได้ (WO ไม่ตรงรูปแบบ TVT-YYYYMM-...): ${st.noMonth}`)
+   +line(true,`ถูกซ่อนเพราะสถานะ "ซ้ำ": ${st.dup} · ยกเลิก: ${st.cancelled}`)
+   +line(st.edited===0,`งานที่ถูกแก้ไขในเบราว์เซอร์นี้ (ไม่ได้บันทึกลงชีต): ${st.edited}`)
+   +line(st.editedShared===0,`WO ที่ใช้เลขเดียวกันหลายแถว: ${st.sharedWO} เลข · แถวที่ถูกแก้ไขซึ่งแชร์เลข WO: ${st.editedShared}`);
+};
 document.getElementById('tqsPrev').onclick=()=>tqsShow(tqsIdx-1);
 document.getElementById('tqsNext').onclick=()=>tqsShow(tqsIdx+1);
 document.addEventListener('keydown',e=>{
