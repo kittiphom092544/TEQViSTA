@@ -3391,38 +3391,59 @@ try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persis
 
 // ---------- Pull unfinished spare-part WOs from the main sheet into the tracking page ----------
 const PARTS_OPEN_RE = /in\s*process|on\s*order/i;
+function stoKeyOf(d){ const m=String(d.iopo||'').match(/(?:^|\D)(76\d{8})(?:\D|$)/); return m?('STO '+m[1]):null; }
 function syncPartsFromMain(manual){
   if(!DATA.length) return null;
   const open = DATA.filter(d=>d.wo && /อะไหล่/.test(d.type||'') && PARTS_OPEN_RE.test(d.prodStatus||'') && !isCancelled(d) && !isDuplicate(d));
-  const byWo = {};
-  open.forEach(d=>{ (byWo[d.wo]=byWo[d.wo]||[]).push(d); });
+  // group by STO number = the IO/PO column (76xxxxxxxx); rows without one stay grouped by WO
+  const grp = {};
+  open.forEach(d=>{ const k=stoKeyOf(d)||d.wo; (grp[k]=grp[k]||[]).push(d); });
   const data = loadPartsData();
-  let newWo=0, newItems=0, closed=0;
-  Object.entries(byWo).forEach(([wo,rs])=>{
-    const mk = d=>({ matcode:'', desc:(d.project||'').trim(), qty:d.qty!==null&&d.qty!==undefined?String(d.qty):'', unitPrice:'', amount:'', received:false, fromMain:true });
-    const cur = data[wo];
-    if(!cur){
-      const cust = rs[0].customer||'';
-      data[wo] = { wo, factory:(typeof findFactoryCodeInText==='function'&&findFactoryCodeInText(cust))||cust, date:rs[0].expectedDate||rs[0].dateReceived||'',
-        items:rs.map(mk), totalValue:null, archived:false, createdAt:new Date().toISOString(), lastUpdatedAt:new Date().toISOString(), fileName:'(ดึงจากข้อมูลหลัก)', source:'main' };
-      newWo++; newItems+=rs.length;
-    } else if(!cur.archived){
-      const have = new Set((cur.items||[]).map(i=>(i.desc||'').trim().toLowerCase()));
-      rs.forEach(d=>{ const it=mk(d); if(it.desc && !have.has(it.desc.toLowerCase())){ cur.items=(cur.items||[]).concat(it); have.add(it.desc.toLowerCase()); newItems++; } });
+  // migrate: earlier version created one card per WO from the main sheet -> rebuild them, keeping ticked items
+  const recv = {};
+  Object.keys(data).forEach(k=>{
+    const w=data[k];
+    if(w.source==='main' && !w.archived && (/^TVT-/.test(k)||/^STO-/.test(k))){
+      (w.items||[]).forEach(it=>{ if(it.received) recv[it.srcKey||(k+'|'+(it.desc||'')+'|'+(it.qty||''))]=true; });
+      delete data[k];
     }
   });
-  // WOs that came from the main sheet and are no longer In Process / On Order there -> finished, move to archive
-  Object.values(data).forEach(w=>{
-    if(w.source==='main' && !w.archived && !byWo[w.wo]){ w.archived=true; w.archivedAt=new Date().toISOString(); closed++; }
+  const qs = d=>d.qty!==null&&d.qty!==undefined?String(d.qty):'';
+  let newCards=0, newItems=0, closed=0;
+  Object.entries(grp).forEach(([k,rs])=>{
+    const isSto = k.indexOf('STO ')===0;
+    const multiWo = new Set(rs.map(d=>d.wo)).size>1;
+    const mk = d=>{
+      const src = d.wo+'|'+(d.project||'')+'|'+qs(d);
+      const rng = (d.expectedDate||'').trim();
+      const desc = (d.project||'').trim()+((isSto&&multiWo)?' (WO '+d.wo+')':'')+(isSto&&/^\d+\s*-\s*\d+$/.test(rng)?' · ลำดับ '+rng:'');
+      return { matcode:'', desc, qty:qs(d), unitPrice:'', amount:'', received:!!recv[src], fromMain:true, srcKey:src };
+    };
+    const cur = data[k];
+    if(!cur){
+      const cust = rs[0].customer||'';
+      data[k] = { wo:k, sto:isSto, woList:[...new Set(rs.map(d=>d.wo))], factory:(typeof findFactoryCodeInText==='function'&&findFactoryCodeInText(cust))||cust, date:rs[0].expectedDate||rs[0].dateReceived||'',
+        items:rs.map(mk), totalValue:null, archived:false, createdAt:new Date().toISOString(), lastUpdatedAt:new Date().toISOString(), fileName:'(ดึงจากข้อมูลหลัก)', source:'main' };
+      newCards++; newItems+=rs.length;
+    } else if(!cur.archived){
+      const have = new Set((cur.items||[]).map(i=>i.srcKey||''));
+      rs.forEach(d=>{ const it=mk(d); if(it.desc && !have.has(it.srcKey)){ cur.items=(cur.items||[]).concat(it); have.add(it.srcKey); newItems++; } });
+      cur.woList=[...new Set([...(cur.woList||[]),...rs.map(d=>d.wo)])];
+    }
   });
-  if(newWo||newItems||closed){ if(!savePartsData(data)) return null; }
+  // cards that came from the main sheet and no longer have any In Process / On Order row -> finished, archive
+  Object.values(data).forEach(w=>{
+    if(w.source==='main' && !w.archived && !grp[w.wo]){ w.archived=true; w.archivedAt=new Date().toISOString(); closed++; }
+  });
+  if(!savePartsData(data)) return null;
+  const nSto = Object.keys(grp).filter(k=>k.indexOf('STO ')===0).length;
   const note=document.getElementById('partsSyncNote');
-  const txt='🔄 ดึงจากข้อมูลหลัก ('+new Date().toLocaleTimeString('th-TH')+'): งานอะไหล่ที่ยังไม่เสร็จ (In Process / On Order) '+Object.keys(byWo).length+' WO · เพิ่มใหม่ '+newWo+' WO / '+newItems+' รายการ · ปิดอัตโนมัติ '+closed+' WO';
+  const txt='🔄 ดึงจากข้อมูลหลัก ('+new Date().toLocaleTimeString('th-TH')+'): งานอะไหล่ที่ยังไม่เสร็จ (In Process / On Order) '+open.length+' รายการ → '+Object.keys(grp).length+' การ์ด (เลข STO '+nSto+' · ไม่มีเลข STO แยกตาม WO '+(Object.keys(grp).length-nSto)+') · เพิ่มใหม่ '+newCards+' การ์ด / '+newItems+' รายการ · ปิดอัตโนมัติ '+closed;
   if(note){ note.style.cssText='font-size:12px;color:#9CA3AF;margin:4px 0 0;'; note.textContent=txt; }
   const v=document.getElementById('view-parts');
-  if((newWo||newItems||closed) && v && v.style.display!=='none') renderPartsPage();
-  if(manual) alert('ดึงจากข้อมูลหลักเรียบร้อย\n\nงานอะไหล่ที่ยังไม่เสร็จ: '+Object.keys(byWo).length+' WO\nเพิ่มใหม่: '+newWo+' WO ('+newItems+' รายการ)\nปิดอัตโนมัติ (เสร็จแล้ว): '+closed+' WO');
-  return {newWo,newItems,closed};
+  if(v && v.style.display!=='none') renderPartsPage();
+  if(manual) alert('ดึงจากข้อมูลหลักเรียบร้อย\n\nงานอะไหล่ที่ยังไม่เสร็จ: '+open.length+' รายการ\nแยกเป็น '+Object.keys(grp).length+' การ์ด (เลข STO '+nSto+' การ์ด)\nเพิ่มใหม่: '+newCards+' การ์ด ('+newItems+' รายการ)\nปิดอัตโนมัติ (เสร็จแล้ว): '+closed);
+  return {newCards,newItems,closed};
 }
 function partsBackupNoteUpdate(){
   const el=document.getElementById('partsBackupNote'); if(!el) return;
