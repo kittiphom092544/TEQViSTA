@@ -571,6 +571,8 @@
   .tqs-kc .dc{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:2.6cqw; font-weight:700; color:#16a34a; pointer-events:none; }
   .tqs-kc .dc small{ font-size:1cqw; color:#777; font-weight:400; }
   .tqs-checkpanel{ background:#fff8e1; color:#5a4300; padding:10px 22px; font-size:13px; line-height:1.7; border-bottom:1px solid #e0b64a; }
+  .tqs-bar .mbx-btn-outline{ background:rgba(255,255,255,.12)!important; color:#fff!important; border:1px solid rgba(255,255,255,.45)!important; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; }
+  .tqs-bar .mbx-btn-outline:hover{ background:rgba(255,255,255,.25)!important; }
   .tqs-stage{ flex:1; display:flex; align-items:center; justify-content:center; padding:14px; }
   .tqs-stage .tqs-slide{ width:min(100%, calc((100vh - 150px)*16/9)); margin:0; }
   .tqs-panel{ position:absolute!important; left:0; top:24%; width:24%; height:34%; background:linear-gradient(135deg,#1d5fa8,#0b3d7a); color:#fff; display:flex; flex-direction:column; justify-content:center; padding-left:3.5cqw; font-weight:700; font-size:2.6cqw; line-height:1.4; clip-path:polygon(0 0,100% 0,88% 100%,0 100%); }
@@ -4096,6 +4098,8 @@ function renderPartsCard(w){
   const staleBadge = (!w.archived && staleDays !== null && staleDays >= staleThreshold)
     ? `<span class="parts-stale-badge" title="ไม่มีความเคลื่อนไหวมา ${staleDays} วันแล้ว">⚠ ค้าง ${staleDays} วัน</span>`
     : '';
+  const stoWos = w.sto ? [...new Set([...(DATA.filter(d=>stoKeyOf(d)===w.wo).map(d=>d.wo)), ...(w.woList||[])].filter(Boolean))] : [];
+  const stoWoLine = stoWos.length ? `<div class="parts-wo-date mono" style="color:var(--text);font-size:12px;" title="เลข WO ของ STO นี้">WO: ${stoWos.map(escHtml).join(', ')}</div>` : '';
   const remainingCount = w.items.filter(i=>!i.received).length;
   return `
     <div class="parts-wo-card ${cardCls}">
@@ -4109,6 +4113,7 @@ function renderPartsCard(w){
             ${tierBadge}
             ${staleBadge}
           </div>
+          ${stoWoLine}
           <div class="parts-wo-factory">${escHtml(factoryLine)}</div>
           ${projectLine ? `<div class="parts-wo-date" style="color:var(--text-mute);" title="ชื่อโครงการจากชีตงานหลัก">📁 ${escHtml(projectLine)}</div>` : ''}
           <div class="parts-wo-date">${escHtml(w.date || '')}</div>
@@ -4712,6 +4717,56 @@ function tqsTypeMonthSlide(){
     <tbody>${body||`<tr><td colspan="${cols.length+1}" style="text-align:center">ไม่มีข้อมูล</td></tr>`}</tbody>
     <tfoot><tr><td>Sum</td>${cols.map(c=>`<td>${n2(sum(null,c))}</td>`).join('')}</tr></tfoot></table>
     <div class="tqs-logo" style="top:auto;bottom:2cqw;right:4cqw">TEQViSTA</div><div class="tqs-page" style="right:1cqw">14</div></div>`;
+}
+function tqsKpiSlide(asOf){
+  const rows=DATA.filter(d=>!isDuplicate(d)&&(!mbSelectedMonth||mbSelectedMonth==='__ALL__'||d.month===mbSelectedMonth)&&(!mbxTypeFilter||d.type===mbxTypeFilter));
+  const total=rows.length, cancelled=rows.filter(isCancelled).length, done=rows.filter(r=>r.done).length, pending=total-done-cancelled;
+  const P=n=>total?(n/total*100):0;
+  const sm=f=>rows.reduce((a,r)=>a+(r[f]||0),0), cn=f=>rows.filter(r=>r[f]!==null&&r[f]!==undefined).length;
+  const actual=rows.filter(r=>r.done).reduce((a,r)=>a+(r.price||0),0);
+  const noPrice=rows.filter(r=>r.price===null&&!isCancelled(r)).length;
+  const C={navy:'#0b3d7a',green:'#16a34a',red:'#e5484d',slate:'#6b7280',amber:'#d98a0b'};
+  const f1=n=>n.toFixed(1);
+  const cards=[
+    ['งานทั้งหมด',total,'int','รายการ (ไม่รวมงานซ้ำ)','navy',100,'📦'],
+    ['เสร็จสมบูรณ์',P(done),'pct',done+' จาก '+total+' งาน','green',P(done),'✅'],
+    ['ยังค้างอยู่',pending,'int','ต้องติดตาม · '+f1(P(pending))+'% ของทั้งหมด','red',P(pending),'⏳'],
+    ['ยกเลิก',cancelled,'int',f1(P(cancelled))+'% ของทั้งหมด','slate',P(cancelled),'🚫'],
+    ['ต้นทุนรวม (Matcode)',sm('matcode'),'int','คิดจาก '+cn('matcode')+' จาก '+total+' รายการ ('+f1(P(cn('matcode')))+'%)','amber',P(cn('matcode')),'🧮'],
+    ['รายได้รวม (Price)',sm('price'),'int','คิดจาก '+cn('price')+' จาก '+total+' รายการ ('+f1(P(cn('price')))+'%)','navy',P(cn('price')),'💰'],
+    ['รายได้ที่เกิดขึ้นจริง',actual,'int','คิดจาก '+done+' จาก '+total+' รายการ ('+f1(P(done))+'%)','green',P(done),'📈'],
+    ['ยังไม่มีราคา',noPrice,'int',f1(P(noPrice))+'% ของทั้งหมด (ไม่รวมยกเลิก)','red',P(noPrice),'⚠️'],
+    ['Labor Cost',sm('laborCost'),'int','คิดจาก '+cn('laborCost')+' จาก '+total+' รายการ ('+f1(P(cn('laborCost')))+'%)','amber',P(cn('laborCost')),'👷'],
+    ['Cost Overhead',sm('costOverhead'),'int','คิดจาก '+cn('costOverhead')+' จาก '+total+' รายการ ('+f1(P(cn('costOverhead')))+'%)','amber',P(cn('costOverhead')),'🏭'],
+    ['Standard Cost',sm('standardCost'),'int','คิดจาก '+cn('standardCost')+' จาก '+total+' รายการ ('+f1(P(cn('standardCost')))+'%)','amber',P(cn('standardCost')),'🏷️']
+  ];
+  window.__tqsKpi={done,pending,cancelled,pct:P(done)};
+  const card=(c,i)=>`<div class="tqs-kc" style="border-left-color:${C[c[4]]};background:linear-gradient(135deg,#fff 50%,${C[c[4]]}18);animation-delay:${i*70}ms">
+    <div class="ic">${c[6]}</div><div class="l">${c[0]}</div>
+    <div class="v" style="color:${C[c[4]]}" data-count="${c[1]}" data-kind="${c[2]}">${c[2]==='pct'?f1(c[1])+'%':fmt(c[1])}</div>
+    <div class="s">${c[3]}</div><div class="bar"><i style="background:${C[c[4]]}" data-w="${Math.min(100,c[5]).toFixed(1)}"></i></div></div>`;
+  const donut=`<div class="tqs-kc" style="border-left-color:#0b3d7a;animation-delay:${cards.length*70}ms"><div class="l">สัดส่วนสถานะงาน</div>
+    <div style="position:relative;flex:1;min-height:0"><canvas id="tqsDonut"></canvas><div class="dc">${f1(P(done))}%<small>เสร็จสมบูรณ์</small></div></div><div class="s" style="text-align:center">🟢 เสร็จ ${done} · 🔴 ค้าง ${pending} · ⚪ ยกเลิก ${cancelled}</div></div>`;
+  return `<div class="tqs-slide"><div class="tqs-logo">TEQViSTA</div>
+    <div class="tqs-title"><b>TEQViSTA</b> Workorder Update</div>
+    <div class="tqs-date" style="position:absolute;right:4.5cqw;top:6.2cqw;margin:0">ข้อมูลสรุปวันที่ ${asOf}</div>
+    <div class="tqs-kpi">${cards.map(card).join('')}${donut}</div>
+    <div class="tqs-page">6</div></div>`;
+}
+function tqsKpiFx(stage){
+  const t0=performance.now(), D=1000;
+  const els=[...stage.querySelectorAll('[data-count]')];
+  const step=t=>{
+    const k=Math.min(1,(t-t0)/D), e=1-Math.pow(1-k,3);
+    els.forEach(el=>{ const n=parseFloat(el.dataset.count)*e; el.textContent=el.dataset.kind==='pct'?n.toFixed(1)+'%':fmt(Math.round(n)); });
+    if(k<1&&document.body.contains(els[0]||stage)) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>stage.querySelectorAll('.bar i').forEach(i=>{ i.style.width=i.dataset.w+'%'; })));
+  const cv=document.getElementById('tqsDonut'); const k=window.__tqsKpi;
+  if(cv&&k){ mbxDestroyChart('tqsDonutC');
+    mbxCharts['tqsDonutC']=new Chart(cv,{type:'doughnut',data:{labels:['เสร็จ','ค้างอยู่','ยกเลิก'],datasets:[{data:[k.done,k.pending,k.cancelled],backgroundColor:['#16a34a','#e5484d','#9ca3af'],borderWidth:2,borderColor:'#fff'}]},
+      options:{maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}}); }
 }
 function tqsShow(i){
   if(!mbSelectedMonth) mbSelectedMonth='__ALL__';
