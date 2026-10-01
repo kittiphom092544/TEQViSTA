@@ -4001,6 +4001,11 @@ function renderPartsTabs(){
     btn.classList.toggle('active', btn.dataset.tab === partsState.tab);
   });
 }
+function partsStoNos(wo){
+  const out=[];
+  DATA.forEach(d=>{ if(d.wo===wo){ const m=String(d.iopo||'').match(/(?:^|\D)(76\d{8})(?:\D|$)/); if(m && !out.includes(m[1])) out.push(m[1]); } });
+  return out;
+}
 function renderPartsCard(w){
   const pct = woProgress(w);
   const doneCls = pct===100 ? 'done' : '';
@@ -4053,8 +4058,9 @@ function renderPartsCard(w){
   const staleBadge = (!w.archived && staleDays !== null && staleDays >= staleThreshold)
     ? `<span class="parts-stale-badge" title="ไม่มีความเคลื่อนไหวมา ${staleDays} วันแล้ว">⚠ ค้าง ${staleDays} วัน</span>`
     : '';
-  const stoWos = w.sto ? (w.woList||[]) : [];
-  const stoWoLine = stoWos.length ? `<div class="parts-wo-date mono" style="color:var(--text);font-size:12px;" title="เลข WO ของ STO นี้">WO: ${stoWos.map(escHtml).join(', ')}</div>` : '';
+  const stoNos = partsStoNos(w.wo);
+  const titleText = stoNos.length ? ('STO '+stoNos.join(', ')) : w.wo;
+  const stoWoLine = stoNos.length ? `<div class="parts-wo-date mono" style="color:var(--text);font-size:12px;" title="เลข WO">WO: ${escHtml(w.wo)}</div>` : '';
   const remainingCount = w.items.filter(i=>!i.received).length;
   return `
     <div class="parts-wo-card ${cardCls}">
@@ -4062,8 +4068,8 @@ function renderPartsCard(w){
         <div>
           <div class="parts-wo-code">
             ${linkedInMain
-              ? `<a href="#" class="parts-wo-link" data-wo="${escHtml(w.wo)}" title="เปิดดูรายละเอียด WO นี้ในแดชบอร์ดหลัก">${escHtml(w.wo)} 🔗</a>`
-              : escHtml(w.wo)}
+              ? `<a href="#" class="parts-wo-link" data-wo="${escHtml(w.wo)}" title="เปิดดูรายละเอียด WO นี้ในแดชบอร์ดหลัก">${escHtml(titleText)} 🔗</a>`
+              : escHtml(titleText)}
             <span class="parts-item-count-badge">${w.items.length} รายการ</span>
             ${tierBadge}
             ${staleBadge}
@@ -4181,7 +4187,7 @@ function renderPartsCards(){
   }
   if(q){
     list = list.filter(w=>{
-      const hay = [w.wo, w.factory, ...w.items.map(i=>i.matcode+' '+i.desc)].join(' ').toLowerCase();
+      const hay = [w.wo, ...partsStoNos(w.wo), w.factory, ...w.items.map(i=>i.matcode+' '+i.desc)].join(' ').toLowerCase();
       return hay.includes(q);
     });
   }
@@ -4340,7 +4346,7 @@ function renderPartsViewModalBody(){
   const data = loadPartsData();
   const w = data[partsViewingWo];
   if(!w){ closePartsViewModal(); return; }
-  document.getElementById('partsViewModalTitle').textContent = w.wo;
+  document.getElementById('partsViewModalTitle').textContent = (partsStoNos(w.wo).length ? 'STO '+partsStoNos(w.wo).join(', ')+' · ' : '') + w.wo;
   const factoryCode = effectiveFactory(w);
   document.getElementById('partsViewModalSub').textContent = FACTORY_CODE_MAP[factoryCode] ? `${factoryCode} · ${FACTORY_CODE_MAP[factoryCode]}` : factoryCode;
   const body = document.getElementById('partsViewModalBody');
